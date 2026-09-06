@@ -11,6 +11,11 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "MapuOne",
   description: "Web App for MapuOne",
+  icons: {
+    icon: "/assets/logo/mapuone_logo.png",
+    shortcut: "/assets/logo/mapuone_logo.png",
+    apple: "/assets/logo/mapuone_logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -1,41 +1,55 @@
 'use client';
 
-import { Bell, Search, UserCircle } from 'lucide-react';
+import { UserCircle, Menu } from 'lucide-react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export default function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-10">
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Right Actions */}
+    <header className="h-20 md:h-32 bg-black flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-md">
+      {/* Mobile Menu Button & Desktop Logo */}
       <div className="flex items-center gap-4">
-        <button className="p-2 relative text-black hover:bg-gray-100 rounded-full transition-colors">
-          <Bell className="w-6 h-6" />
-          {/* Notification Badge */}
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-accent rounded-full border-2 border-white"></span>
-        </button>
         
-        <div className="flex items-center gap-3 border-l border-gray-300 pl-4">
-          <div className="text-right hidden md:block">
-            <p className="text-sm font-medium text-black">John Doe</p>
-            <p className="text-xs text-gray-500">{isAdmin ? 'Administrator' : 'Student'}</p>
+        {/* Mobile Hamburger (hidden on md) */}
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden text-white p-2 hover:bg-gray-800 rounded-lg transition-colors"
+        >
+          <Menu className="w-8 h-8" />
+        </button>
+
+        {/* Desktop Logo (hidden on mobile) */}
+        <Link href={isAdmin ? "/admin/queue" : "/user/dashboard"} className="hidden md:flex items-center relative pl-[190px]">
+          {/* Absolutely positioned giant logo */}
+          <img 
+            src="/assets/logo/mapuone_logo.png" 
+            alt="MapúOne Logo" 
+            className="absolute -top-2 -left-2 w-[180px] h-auto z-40 drop-shadow-xl hover:scale-105 transition-transform" 
+          />
+          <div className="flex flex-col justify-center">
+            <h1 className="text-white text-4xl md:text-5xl font-black leading-none tracking-wide">MapúOne</h1>
+            <h2 className="text-accent text-base md:text-lg font-bold leading-none mt-1.5 md:mt-2">Mapua University</h2>
           </div>
-          <UserCircle className="w-8 h-8 text-gray-400" />
-        </div>
+        </Link>
+      </div>
+      
+      <div className="flex items-center pr-2 md:pr-4 z-40 hover:opacity-80 transition-opacity cursor-pointer">
+        {isAdmin ? (
+          <div className="bg-[#E50000] text-white text-xs font-bold uppercase tracking-wider px-8 py-2.5 rounded shadow-sm">
+            Admin
+          </div>
+        ) : (
+          <Link href="/user/profile">
+            <UserCircle className="w-9 h-9 md:w-10 md:h-10 text-white" />
+          </Link>
+        )}
       </div>
     </header>
   );
