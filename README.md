@@ -2,7 +2,7 @@
   <img src="public/assets/logo/mapuone_logo.png" alt="MapuOne Logo" width="250" style="margin-bottom: 20px;" />
 
   <h1 style="color: #F50B0B; font-size: 3.5em; letter-spacing: 5px; margin: 0;">M A P U O N E</h1>
-  
+
   <p style="color: #000000; font-size: 1.2em; font-weight: bold; letter-spacing: 2px; margin-top: 10px;">
     YOUR VOICE <span style="color: #F50B0B;">•</span> OUR PRIORITY <span style="color: #F50B0B;">•</span> STREAMLINED
   </p>
@@ -18,3 +18,11 @@
 </div>
 
 <br/>
+
+<div align="center">
+
+  <a href="https://www.figma.com/design/fVo9KAehAwMVKWYb2LG9ps/MapúOne--Smart-Campus-Complaint---Case-Management-System--for-Mapúa-University-Figma">
+    <img src="https://img.shields.io/badge/VIEW%20FIGMA%20DESIGN-F50B0B?style=for-the-badge&logo=figma&logoColor=white" alt="View Figma Design" />
+  </a>
+
+</div>
