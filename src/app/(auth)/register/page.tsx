@@ -6,6 +6,7 @@ import PopupDialog from '@/components/shared/PopupDialog';
 
 export default function RegisterPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +51,7 @@ export default function RegisterPage() {
               />
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-sm font-semibold text-black">Student Number</label>
+              <label className="text-sm font-semibold text-black">ID Number</label>
               <input 
                 type="text" 
                 required
@@ -108,7 +109,15 @@ export default function RegisterPage() {
               className="w-5 h-5 text-primary bg-white border-gray-400 rounded focus:ring-primary focus:ring-2"
             />
             <label htmlFor="privacy-terms" className="text-xs sm:text-sm text-gray-700">
-              I agree to the data privacy terms of MapúOne.
+              I agree to the{' '}
+              <button 
+                type="button"
+                onClick={() => setIsTermsOpen(true)}
+                className="font-bold text-black hover:underline focus:outline-none"
+              >
+                data privacy terms
+              </button>
+              {' '}of MapúOne.
             </label>
           </div>
 
@@ -157,6 +166,96 @@ export default function RegisterPage() {
           <p className="text-gray-600 text-sm leading-relaxed max-w-sm">
             We have sent an activation link to your Mapúa email address. Please click the link inside the email to verify and activate your account.
           </p>
+        </div>
+      </PopupDialog>
+
+      {/* Privacy Terms Popup */}
+      <PopupDialog
+        isOpen={isTermsOpen}
+        onClose={() => setIsTermsOpen(false)}
+        hideHeader={true}
+        maxWidth="max-w-3xl"
+        footer={
+          <div className="w-full flex justify-end px-2 pb-2 mt-4 border-t border-gray-200 pt-6">
+            <button 
+              onClick={() => setIsTermsOpen(false)}
+              className="px-10 py-3 bg-black hover:bg-[#2D2D2D] text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide w-full sm:w-auto"
+            >
+              I Understand & Agree
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col text-left font-poppins">
+          
+          {/* Custom Header Area */}
+          <div className="mb-5 sm:mb-6 pb-5 sm:pb-6 border-b-4 border-black">
+            <h2 className="text-2xl sm:text-4xl font-black text-black tracking-[2%] uppercase leading-none">
+              Data Privacy Terms
+            </h2>
+            <p className="text-gray-500 font-bold mt-2 uppercase text-xs sm:text-sm tracking-wide">
+              MapúOne Feedback & Complaints Platform
+            </p>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="space-y-6 text-sm sm:text-base text-gray-800 leading-relaxed pr-2">
+            
+            <p className="font-medium">
+              MapúOne is committed to protecting your privacy and ensuring the security of your personal data. By registering for and using the MapúOne platform, you acknowledge and agree to the collection, processing, and storage of your personal data in accordance with the Data Privacy Act of 2012 (Republic Act No. 10173) and Mapúa University's Data Privacy Policies.
+            </p>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">1. Information We Collect</h3>
+              <p className="mb-2">To provide a secure and verifiable environment for community concerns, we collect the following personal information upon registration and usage:</p>
+              <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                <li><strong>Identity Data:</strong> Full Name, ID Number, and Course/Department/Office.</li>
+                <li><strong>Contact Data:</strong> Official Mapúa Email Address.</li>
+                <li><strong>Platform Data:</strong> The content of your complaints, feedback, documents attached, and communication logs with university departments.</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">2. Purpose and Usage of Data</h3>
+              <p className="mb-2">Your information is strictly utilized to facilitate the core functions of MapúOne:</p>
+              <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                <li>To verify your identity as a bona fide member of the Mapúa University community.</li>
+                <li>To process, evaluate, and act upon the complaints, feedback, or concerns you submit.</li>
+                <li>To route your specific concerns to the appropriate university departments or officials on a strict need-to-know basis.</li>
+                <li>To monitor the resolution progress and provide you with updates.</li>
+                <li>To generate anonymized, aggregated statistical reports for university administration to improve the campus experience.</li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">3. Data Sharing and Disclosure</h3>
+              <p>
+                MapúOne does not sell, rent, or trade your personal information. Your identity and the details of your complaints are treated with utmost confidentiality. Information is only disclosed to authorized Mapúa University personnel (such as department heads, guidance counselors, or disciplinary boards) who are directly involved in addressing your submitted concern. We will not disclose your information to third parties without your explicit consent, except as required by law.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">4. Data Protection and Security</h3>
+              <p>
+                We implement robust technical and organizational security measures to protect your personal data against unauthorized access, unlawful processing, accidental loss, destruction, or damage. Access to the MapúOne database is strictly restricted and monitored.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">5. Data Retention</h3>
+              <p>
+                Your personal data and submitted concerns will be retained only for as long as necessary to fulfill the purposes for which they were collected, or as required by legitimate academic and legal purposes of Mapúa University, after which they will be securely deleted or anonymized.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="font-black text-black uppercase tracking-wide mb-2 text-lg">6. Your Rights as a Data Subject</h3>
+              <p>
+                Under the Data Privacy Act, you have the right to be informed, to access, to object, to erasure or blocking, to damages, to file a complaint, to rectify, and to data portability. For any inquiries regarding your data privacy rights on MapúOne, you may contact the Mapúa University Data Protection Officer (DPO).
+              </p>
+            </div>
+
+          </div>
         </div>
       </PopupDialog>
 

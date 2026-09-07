@@ -45,13 +45,13 @@ export default function PopupDialog({
         )}
         
         {/* Body */}
-        <div className={`p-10 ${overflowVisible ? 'overflow-visible' : 'max-h-[85vh] overflow-y-auto'}`}>
+        <div className={`p-6 sm:p-10 ${overflowVisible ? 'overflow-visible' : 'max-h-[85vh] overflow-y-auto custom-scrollbar'}`}>
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-10 pb-10 flex justify-center gap-4">
+          <div className="px-6 pb-6 sm:px-10 sm:pb-10 flex justify-center gap-4">
             {footer}
           </div>
         )}
