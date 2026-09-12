@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [userModalRoleOpen, setUserModalRoleOpen] = useState(false);
   const [userModalStatusOpen, setUserModalStatusOpen] = useState(false);
   const [userModalDeptOpen, setUserModalDeptOpen] = useState(false);
+  const [userModalCategories, setUserModalCategories] = useState<string[]>([]);
 
   // Keyword Tag Input State
   const [modalKeywords, setModalKeywords] = useState<string[]>([]);
@@ -62,6 +63,11 @@ export default function SettingsPage() {
     }
     setKeywordInput('');
   }, [categoryModalData]);
+
+  // Sync user categories
+  useEffect(() => {
+    setUserModalCategories([]);
+  }, [userModalData]);
 
   const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === ' ' || e.key === 'Enter' || e.key === ',') {
@@ -263,11 +269,16 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Category Name</label>
-              <input 
-                type="text" 
+              <select 
                 defaultValue={categoryModalData !== 'NEW' && categoryModalData ? categoryModalData.name : ''}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black bg-white"
+              >
+                <option value="" disabled>Select Department</option>
+                <option value="FACILITIES">Facilities</option>
+                <option value="ACADEMIC AFFAIRS">Academic Affairs</option>
+                <option value="IT / TECH SUPPORT">IT / Tech Support</option>
+                <option value="STUDENT SERVICES">Student Services</option>
+              </select>
             </div>
 
             <div className="flex flex-col gap-2">
@@ -371,6 +382,16 @@ export default function SettingsPage() {
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Name is synced from MapuOne SSO</span>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Email</label>
+              <input 
+                type="text" 
+                defaultValue={userModalData ? `${userModalData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@mapua.edu.ph` : ''}
+                disabled
+                className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500 cursor-not-allowed"
+              />
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-6">
               <div className="flex flex-col gap-2 w-full">
                 <label className="text-gray-600 font-black text-xs uppercase tracking-wide">System Role</label>
@@ -385,7 +406,7 @@ export default function SettingsPage() {
                   </button>
                   {userModalRoleOpen && (
                     <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                      {['Student', 'Admin'].map((opt, i, arr) => (
+                      {['Student', 'Admin', 'Staff'].map((opt, i, arr) => (
                         <button 
                           key={opt} type="button" 
                           onClick={() => { 
@@ -439,37 +460,87 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Assigned Department</label>
-              <div className="relative w-full z-20">
-                <button 
-                  type="button" 
-                  onClick={() => setUserModalDeptOpen(!userModalDeptOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
-                >
-                  {userModalData ? userModalData.department : 'Student Services'}
-                  <span className={`text-gray-400 text-[10px] transform transition-transform ${userModalDeptOpen ? 'rotate-90' : ''}`}>▶</span>
-                </button>
-                {userModalDeptOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                    {['Student Services', 'Facilities', 'Tech Support', 'IT - O', 'Academic Affairs', 'None'].map((opt, i, arr) => (
-                      <button 
-                        key={opt} type="button" 
-                        onClick={() => { 
-                          if (userModalData) {
-                            setUserModalData({ ...userModalData, department: opt });
-                          }
-                          setUserModalDeptOpen(false); 
-                        }}
-                        className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-                      >
-                        {opt}
-                        {((userModalData ? userModalData.department : 'Student Services') === opt) && <span className="text-primary text-xs">✓</span>}
-                      </button>
+            <div className="flex flex-col sm:flex-row gap-6">
+              <div className="flex flex-col gap-2 w-full">
+                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Assigned Department</label>
+                <div className="relative w-full z-20">
+                  <button 
+                    type="button" 
+                    onClick={() => setUserModalDeptOpen(!userModalDeptOpen)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
+                  >
+                    {userModalData ? userModalData.department : 'Student Services'}
+                    <span className={`text-gray-400 text-[10px] transform transition-transform ${userModalDeptOpen ? 'rotate-90' : ''}`}>▶</span>
+                  </button>
+                  {userModalDeptOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
+                      {['Student Services', 'Facilities', 'Tech Support', 'IT - O', 'Academic Affairs', 'None'].map((opt, i, arr) => (
+                        <button 
+                          key={opt} type="button" 
+                          onClick={() => { 
+                            if (userModalData) {
+                              setUserModalData({ ...userModalData, department: opt });
+                            }
+                            setUserModalDeptOpen(false); 
+                          }}
+                          className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
+                        >
+                          {opt}
+                          {((userModalData ? userModalData.department : 'Student Services') === opt) && <span className="text-primary text-xs">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full">
+                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Handled Categories</label>
+                
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap gap-2 w-full p-2 border border-gray-300 rounded-lg bg-white min-h-[48px]">
+                    {userModalCategories.length === 0 && (
+                      <span className="text-gray-400 text-sm italic px-2 py-1">No categories handled</span>
+                    )}
+                    {userModalCategories.map(cat => (
+                      <div key={cat} className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${getCategoryStyle(cat)}`}>
+                        {cat}
+                        <button 
+                          onClick={() => setUserModalCategories(userModalCategories.filter(c => c !== cat))}
+                          className="hover:opacity-70 transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
-                )}
+                  
+                  <select 
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value && !userModalCategories.includes(e.target.value)) {
+                        setUserModalCategories([...userModalCategories, e.target.value]);
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary bg-white"
+                  >
+                    <option value="" disabled>+ Add Category...</option>
+                    {mockCategories.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-gray-100">
+              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Security</label>
+              <button 
+                type="button"
+                className="w-full sm:w-auto self-start px-5 py-2.5 border-2 border-[#E50000] text-[#E50000] hover:bg-[#E50000] hover:text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide mt-1"
+              >
+                Send Password Reset Link
+              </button>
             </div>
           </div>
         </div>

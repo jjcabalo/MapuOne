@@ -4,22 +4,26 @@ import { useState, useEffect } from 'react';
 import { UserCircle } from 'lucide-react';
 import PopupDialog from '@/components/shared/PopupDialog';
 
+// Simulated current logged-in admin
+const currentUser = 'L Penaflor';
+
 const mockCases = [
   { id: 1, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'OPEN' },
   { id: 2, complaint: 'Broken projector, room 412', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'IN PROGRESS' },
   { id: 3, complaint: 'Flickering lights, room 201', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'RESOLVED' },
-  { id: 4, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'RESOLVED' },
+  { id: 4, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'A Francisco', status: 'RESOLVED' },
   { id: 5, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'OPEN' },
   { id: 6, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'PENDING' },
-  { id: 7, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'IN PROGRESS' },
+  { id: 7, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'A Francisco', status: 'IN PROGRESS' },
   { id: 8, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'PENDING' },
   { id: 9, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'PENDING' },
   { id: 10, complaint: 'Aircon not working, room 305', filedBy: 'Z Pedregosa', date: 'Aug 17, 2026', assigned: 'L Penaflor', status: 'OPEN' },
   { id: 11, complaint: 'Door knob broken, room 112', filedBy: 'A. Smith', date: 'Aug 18, 2026', assigned: 'L Penaflor', status: 'OPEN' },
   { id: 12, complaint: 'Leaking ceiling, library', filedBy: 'B. Johnson', date: 'Aug 18, 2026', assigned: 'L Penaflor', status: 'IN PROGRESS' },
+  { id: 13, complaint: 'Wifi down, floor 3', filedBy: 'C. Doe', date: 'Aug 19, 2026', assigned: 'L Penaflor', status: 'OPEN' },
 ];
 
-export default function AdminCaseQueuePage() {
+export default function AdminMyTicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedCase, setSelectedCase] = useState<typeof mockCases[0] | null>(null);
@@ -27,7 +31,7 @@ export default function AdminCaseQueuePage() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [priority, setPriority] = useState('HIGH');
   const [category, setCategory] = useState('FACILITIES');
-  const [assigned, setAssigned] = useState('A. FRANCISCO');
+  const [assigned, setAssigned] = useState(currentUser);
   const [status, setStatus] = useState('IN PROGRESS');
 
   const [activeStatusFilter, setActiveStatusFilter] = useState<string | null>(null);
@@ -42,7 +46,10 @@ export default function AdminCaseQueuePage() {
     setCurrentPage(1);
   }, [searchQuery, activeStatusFilter]);
 
-  const baseCases = mockCases.filter(c => 
+  // Only show cases assigned to the current user
+  const myCases = mockCases.filter(c => c.assigned === currentUser);
+
+  const baseCases = myCases.filter(c => 
     c.complaint.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.filedBy.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -66,14 +73,14 @@ export default function AdminCaseQueuePage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-black uppercase tracking-wide">
-            {selectedCase ? 'Case Details' : 'Case Queue'}
+            {selectedCase ? 'Case Details' : 'My Tickets'}
           </h1>
           {selectedCase && (
             <button 
               onClick={() => setSelectedCase(null)}
               className="text-gray-600 hover:text-black text-sm mt-2 flex items-center gap-1 transition-colors"
             >
-              ← Back to Case Queue
+              ← Back to My Tickets
             </button>
           )}
         </div>
@@ -81,7 +88,7 @@ export default function AdminCaseQueuePage() {
         {!selectedCase && (
           <input
             type="text"
-            placeholder="Search your cases..."
+            placeholder="Search your assigned cases..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-sm text-black placeholder-gray-400 shadow-sm"
@@ -274,7 +281,7 @@ export default function AdminCaseQueuePage() {
                 {/* Node 2: Progress */}
                 <div className="relative pl-6 pb-6">
                   <div className="absolute -left-[11px] top-1 w-5 h-5 bg-[#FDF2C8] rounded-full border-[3px] border-white shadow-sm"></div>
-                  <p className="font-bold text-black text-sm">Status Changed to In Progress - Assigned to A. Francisco, Facilities</p>
+                  <p className="font-bold text-black text-sm">Status Changed to In Progress - Assigned to {currentUser}, Facilities</p>
                   <p className="text-gray-500 text-[11px] mt-1">Aug 4, 2026, 10:00 AM</p>
                 </div>
 
@@ -291,7 +298,7 @@ export default function AdminCaseQueuePage() {
                         <div className="flex justify-between items-center mb-2 gap-4">
                           <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">Aug 10, 9:34 AM</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-black text-xs md:text-sm">A Francisco <span className="font-normal mx-1">{'>'}</span> Facilities</span>
+                            <span className="font-black text-black text-xs md:text-sm">{currentUser} <span className="font-normal mx-1">{'>'}</span> Facilities</span>
                             <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
                           </div>
                         </div>
@@ -333,7 +340,7 @@ export default function AdminCaseQueuePage() {
                         <div className="flex justify-between items-center mb-2 gap-4">
                           <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">Aug 12, 10:15 AM</span>
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-black text-xs md:text-sm">A Francisco <span className="font-normal mx-1">{'>'}</span> Facilities</span>
+                            <span className="font-black text-black text-xs md:text-sm">{currentUser} <span className="font-normal mx-1">{'>'}</span> Facilities</span>
                             <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
                           </div>
                         </div>
@@ -451,7 +458,7 @@ export default function AdminCaseQueuePage() {
                   </button>
                   {activeDropdown === 'assigned' && (
                     <div className="absolute top-full left-0 mt-2 w-full bg-[#F8F9FA] rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                      {['A. FRANCISCO', 'L. PENAFLOR', 'UNASSIGNED'].map((opt, i, arr) => (
+                      {['A. FRANCISCO', 'L PENAFLOR', 'UNASSIGNED'].map((opt, i, arr) => (
                         <button 
                           key={opt} type="button" 
                           onClick={() => { setAssigned(opt); setActiveDropdown(null); }}

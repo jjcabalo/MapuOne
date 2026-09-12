@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserCircle } from 'lucide-react';
 
 const mockCases = [
@@ -15,6 +15,7 @@ const mockCases = [
   { id: 'MU-2026-888', subject: 'LEAKING CEILING IN CAFETERIA', category: 'FACILITIES', filed: 'May 22, 2026', updated: 'May 23, 2026', status: 'OPEN' },
   { id: 'MU-2026-999', subject: 'UNABLE TO ACCESS BLACKBOARD MODULES', category: 'IT TECHNICAL SUPPORT', filed: 'May 10, 2026', updated: 'May 11, 2026', status: 'RESOLVED' },
   { id: 'MU-2026-101', subject: 'DROPPING OF COURSE LATE REQUEST', category: 'ACADEMIC AFFAIRS', filed: 'May 2, 2026', updated: 'May 5, 2026', status: 'PENDING RESPONSE' },
+  { id: 'MU-2026-102', subject: 'REQUEST TO TRANSFER SECTION', category: 'ACADEMIC AFFAIRS', filed: 'Apr 10, 2026', updated: 'Apr 15, 2026', status: 'RESOLVED' },
 ];
 
 const filters = ['ALL', 'OPEN', 'IN PROGRESS', 'PENDING RESPONSE', 'RESOLVED'];
@@ -24,12 +25,23 @@ export default function MyCasesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCase, setSelectedCase] = useState<typeof mockCases[0] | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 10;
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilter]);
+
   // Filter logic
   const filteredCases = mockCases.filter((c) => {
     const matchesFilter = activeFilter === 'ALL' || c.status === activeFilter;
     const matchesSearch = c.subject.toLowerCase().includes(searchQuery.toLowerCase()) || c.id.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  const totalPages = Math.ceil(filteredCases.length / rowsPerPage);
+  const paginatedCases = filteredCases.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
   // Reusable Card Renderer
   const renderCaseCard = (item: typeof mockCases[0], isDetailView = false) => {
@@ -131,10 +143,49 @@ export default function MyCasesPage() {
         {/* LIST VIEW */}
         {!selectedCase && (
           <div className="flex flex-col gap-4">
-            {filteredCases.map((item) => renderCaseCard(item))}
+            {paginatedCases.map((item) => renderCaseCard(item))}
             {filteredCases.length === 0 && (
               <div className="text-center py-20 text-gray-500 font-medium">
                 No cases found matching your criteria.
+              </div>
+            )}
+            
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4 border-t border-gray-200 pt-6">
+                <div className="text-sm text-gray-500 font-medium">
+                  Showing <span className="text-black font-bold">{((currentPage - 1) * rowsPerPage) + 1}</span> to <span className="text-black font-bold">{Math.min(currentPage * rowsPerPage, filteredCases.length)}</span> of <span className="text-black font-bold">{filteredCases.length}</span> cases
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors uppercase tracking-wide shadow-sm"
+                  >
+                    Prev
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i + 1)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+                          currentPage === i + 1 
+                            ? 'bg-[#E50000] text-white shadow-md' 
+                            : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors uppercase tracking-wide shadow-sm"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             )}
           </div>

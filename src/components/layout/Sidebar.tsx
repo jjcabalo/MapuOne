@@ -16,6 +16,7 @@ const userRoutes = [
 
 const adminRoutes = [
   { name: 'CASE QUEUE', path: '/admin/queue', icon: '/assets/icons/case-queue_icon.png' },
+  { name: 'MY TICKETS', path: '/admin/my-tickets', icon: '/assets/icons/my-cases_icon.png' },
   { name: 'REPORTS', path: '/admin/reports', icon: '/assets/icons/reports_icon.png' },
   { name: 'SETTINGS', path: '/admin/settings', icon: '/assets/icons/setings_icon.png' },
 ];

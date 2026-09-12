@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 const mockComplaints = [
   { id: 1, category: 'Facilities', date: '10/12/26', status: 'OPEN' },
   { id: 2, category: 'Academic Affairs', date: '10/10/26', status: 'IN PROGRESS' },
@@ -10,6 +12,9 @@ const mockComplaints = [
   { id: 7, category: 'IT Support', date: '09/25/26', status: 'OPEN' },
   { id: 8, category: 'Facilities', date: '09/20/26', status: 'RESOLVED' },
   { id: 9, category: 'Student Services', date: '09/15/26', status: 'RESOLVED' },
+  { id: 10, category: 'Facilities', date: '09/10/26', status: 'OPEN' },
+  { id: 11, category: 'IT Support', date: '09/05/26', status: 'RESOLVED' },
+  { id: 12, category: 'Academic Affairs', date: '09/01/26', status: 'IN PROGRESS' },
 ];
 
 export default function UserDashboardPage() {
@@ -58,7 +63,7 @@ export default function UserDashboardPage() {
       {/* Complaints List - Independently Scrollable on PC, native scroll on Mobile */}
       <div className="flex-1 md:overflow-y-auto pr-2 custom-scrollbar">
         <div className="flex flex-col">
-          {mockComplaints.map((complaint) => {
+          {mockComplaints.slice(0, 10).map((complaint) => {
             const bgStatusColor = 
               complaint.status === 'OPEN' ? 'bg-[#FFBFC4]' : 
               complaint.status === 'IN PROGRESS' ? 'bg-[#FDF2C8]' : 
@@ -78,6 +83,15 @@ export default function UserDashboardPage() {
               </div>
             );
           })}
+          
+          <div className="flex justify-center mt-8 mb-4">
+            <Link 
+              href="/user/my-cases"
+              className="px-8 py-3 bg-[#E50000] hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide shadow-md"
+            >
+              See All Complaints
+            </Link>
+          </div>
         </div>
       </div>
     </div>

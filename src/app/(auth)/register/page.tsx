@@ -40,28 +40,8 @@ export default function RegisterPage() {
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="w-full max-w-4xl flex flex-col gap-4 md:gap-5 text-left pb-4">
           
-          {/* Row 1 */}
-          <div className="flex flex-col md:flex-row gap-6 w-full">
-            <div className="flex-1 flex flex-col gap-1">
-              <label className="text-sm font-semibold text-black">Full Name</label>
-              <input 
-                type="text" 
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
-            </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <label className="text-sm font-semibold text-black">ID Number</label>
-              <input 
-                type="text" 
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
-            </div>
-          </div>
-
-          {/* Row 2 */}
-          <div className="flex flex-col md:flex-row gap-6 w-full">
+          {/* Row 1 - Email Address */}
+          <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Mapua Email Address</label>
               <input 
@@ -70,17 +50,9 @@ export default function RegisterPage() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
               />
             </div>
-            <div className="flex-1 flex flex-col gap-1">
-              <label className="text-sm font-semibold text-black">Course / Department</label>
-              <input 
-                type="text" 
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
-            </div>
           </div>
 
-          {/* Row 3 - Passwords (half width of normal fields on desktop) */}
+          {/* Row 2 - Passwords */}
           <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Password</label>
