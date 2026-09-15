@@ -198,7 +198,7 @@ export default function ReportsAnalyticsPage() {
         const element = document.getElementById('pdf-content');
         if (!element) return;
         
-        const opt = {
+        const opt: any = {
           margin:       [10, 10, 10, 10], // top, left, bottom, right
           filename:     `MapuOne_Report_${timeRange.replace(/ /g, '_')}.pdf`,
           image:        { type: 'jpeg', quality: 0.98 },
