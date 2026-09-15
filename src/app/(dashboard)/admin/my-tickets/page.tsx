@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { UserCircle } from 'lucide-react';
+import { UserCircle, AlertCircle } from 'lucide-react';
 import PopupDialog from '@/components/shared/PopupDialog';
 import { supabase } from '@/lib/supabase';
 
@@ -57,6 +57,17 @@ export default function AdminMyTicketsPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setIsToastVisible(true);
+    setTimeout(() => {
+      setIsToastVisible(false);
+    }, 4000);
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -265,7 +276,11 @@ export default function AdminMyTicketsPage() {
   const resolvedCount = baseCases.filter(c => c.status === 'RESOLVED').length;
 
   return (
-    <div className="flex flex-col h-auto md:h-full font-poppins w-full min-h-full shrink-0">
+    <div className="flex flex-col h-auto md:h-full font-poppins w-full min-h-full shrink-0 relative">
+      <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-white border border-gray-200 shadow-xl rounded-lg px-6 py-4 flex items-center gap-3 transition-all duration-500 ease-in-out transform ${isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'}`}>
+        <AlertCircle className="w-5 h-5 text-[#E50000]" />
+        <p className="text-sm font-bold text-gray-800">{toastMessage}</p>
+      </div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-black uppercase tracking-wide">
