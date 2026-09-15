@@ -130,9 +130,9 @@ export default function MyCasesPage() {
       }
 
       // Live-update currently selected case details if already open
-      setSelectedCase(prev => {
+      setSelectedCase((prev: any) => {
         if (!prev) return prev;
-        const updatedTarget = formatted.find(c => c.id === prev.id);
+        const updatedTarget = formatted.find((c: any) => c.id === prev.id);
         return updatedTarget ? updatedTarget : prev;
       });
     }
