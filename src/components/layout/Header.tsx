@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { UserCircle, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -10,7 +12,21 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
-  const isAdmin = pathname.startsWith('/admin');
+  const isAdminPath = pathname.startsWith('/admin');
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data } = await supabase.from('users').select('role').eq('id', session.user.id).single();
+        if (data) {
+          setUserRole(data.role);
+        }
+      }
+    };
+    fetchRole();
+  }, [pathname]); // Refetch if pathname changes, just in case
 
   return (
     <header className="h-20 md:h-32 bg-black flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shadow-md">
@@ -26,7 +42,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </button>
 
         {/* Desktop Logo (hidden on mobile) */}
-        <Link href={isAdmin ? "/admin/queue" : "/user/dashboard"} className="hidden md:flex items-center relative pl-[190px]">
+        <Link href={isAdminPath ? "/admin/queue" : "/user/dashboard"} className="hidden md:flex items-center relative pl-[190px]">
           {/* Absolutely positioned giant logo */}
           <img 
             src="/assets/logo/mapuone_logo.png" 
@@ -41,10 +57,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
       </div>
       
       <div className="flex items-center pr-2 md:pr-4 z-40 hover:opacity-80 transition-opacity cursor-pointer">
-        {isAdmin ? (
-          <div className="bg-[#E50000] text-white text-xs font-bold uppercase tracking-wider px-8 py-2.5 rounded shadow-sm">
-            Admin
-          </div>
+        {isAdminPath ? (
+          <Link href="/admin/profile">
+            <div className="bg-[#E50000] text-white text-xs font-bold uppercase tracking-wider px-8 py-2.5 rounded shadow-sm">
+              {userRole === 'HANDLER' ? 'Handler' : 'Admin'}
+            </div>
+          </Link>
         ) : (
           <Link href="/user/profile">
             <UserCircle className="w-9 h-9 md:w-10 md:h-10 text-white" />

@@ -31,3 +31,14 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #D1D5DB; /* tailwind gray-300 */
 }
+
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+  .print-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+}

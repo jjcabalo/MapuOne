@@ -1,27 +1,54 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
-const mockComplaints = [
-  { id: 1, category: 'Facilities', date: '10/12/26', status: 'OPEN' },
-  { id: 2, category: 'Academic Affairs', date: '10/10/26', status: 'IN PROGRESS' },
-  { id: 3, category: 'IT Support', date: '10/08/26', status: 'RESOLVED' },
-  { id: 4, category: 'Student Services', date: '10/05/26', status: 'OPEN' },
-  { id: 5, category: 'Facilities', date: '10/01/26', status: 'RESOLVED' },
-  { id: 6, category: 'Academic Affairs', date: '09/28/26', status: 'IN PROGRESS' },
-  { id: 7, category: 'IT Support', date: '09/25/26', status: 'OPEN' },
-  { id: 8, category: 'Facilities', date: '09/20/26', status: 'RESOLVED' },
-  { id: 9, category: 'Student Services', date: '09/15/26', status: 'RESOLVED' },
-  { id: 10, category: 'Facilities', date: '09/10/26', status: 'OPEN' },
-  { id: 11, category: 'IT Support', date: '09/05/26', status: 'RESOLVED' },
-  { id: 12, category: 'Academic Affairs', date: '09/01/26', status: 'IN PROGRESS' },
-];
+interface Complaint {
+  id: string;
+  ticket_number: number;
+  category: string;
+  title: string;
+  description?: string;
+  status: string;
+  created_at: string;
+}
 
 export default function UserDashboardPage() {
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const getCategoryStyle = (cat: string) => {
+    if (!cat) return 'bg-gray-200 text-gray-800';
+    const upper = cat.toUpperCase();
+    if (upper.includes('FACILITIES')) return 'bg-[#FFBFC4] text-[#E50000]';
+    if (upper.includes('ACADEMIC')) return 'bg-[#9B9BE3] text-white';
+    if (upper.includes('IT')) return 'bg-[#5BC0DE] text-white';
+    if (upper.includes('STUDENT')) return 'bg-[#95C287] text-white';
+    return 'bg-gray-200 text-gray-800';
+  };
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data } = await supabase
+        .from('complaints')
+        .select('*')
+        .eq('complainant_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (data) setComplaints(data);
+      setIsLoading(false);
+    };
+
+    fetchComplaints();
+  }, []);
   
-  const openCount = mockComplaints.filter(c => c.status === 'OPEN').length;
-  const inProgressCount = mockComplaints.filter(c => c.status === 'IN PROGRESS').length;
-  const resolvedCount = mockComplaints.filter(c => c.status === 'RESOLVED').length;
+  const openCount = complaints.filter(c => c.status === 'OPEN').length;
+  const inProgressCount = complaints.filter(c => c.status === 'IN_PROCESS').length;
+  const resolvedCount = complaints.filter(c => c.status === 'RESOLVED').length;
 
   return (
     <div className="flex flex-col h-full font-poppins">
@@ -63,26 +90,55 @@ export default function UserDashboardPage() {
       {/* Complaints List - Independently Scrollable on PC, native scroll on Mobile */}
       <div className="flex-1 md:overflow-y-auto pr-2 custom-scrollbar">
         <div className="flex flex-col">
-          {mockComplaints.slice(0, 10).map((complaint) => {
-            const bgStatusColor = 
-              complaint.status === 'OPEN' ? 'bg-[#FFBFC4]' : 
-              complaint.status === 'IN PROGRESS' ? 'bg-[#FDF2C8]' : 
-              'bg-[#D1F0D4]';
+          {isLoading ? (
+            <div className="py-10 text-center text-gray-500 font-bold uppercase">Loading complaints...</div>
+          ) : complaints.length === 0 ? (
+            <div className="py-10 text-center text-gray-500 font-bold uppercase">No complaints filed yet.</div>
+          ) : (
+            complaints.slice(0, 10).map((complaint) => {
+              const bgStatusColor = 
+                complaint.status === 'OPEN' ? 'bg-[#FFBFC4]' : 
+                complaint.status === 'IN_PROCESS' ? 'bg-[#FDF2C8]' : 
+                'bg-[#D1F0D4]';
 
-            return (
-              <div key={complaint.id} className="flex justify-between items-center py-6 border-b border-gray-200">
-                <div className="flex flex-col gap-1">
-                  <h3 className="font-bold text-2xl text-[#4A4A4A]">Complaint #{complaint.id}</h3>
-                  <p className="text-xs text-gray-800 font-medium tracking-widest uppercase">
-                    {complaint.category} | Filed Date: {complaint.date}
-                  </p>
+              const formattedDate = new Date(complaint.created_at).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              });
+
+              return (
+                <div key={complaint.id} className="flex justify-between items-center py-6 border-b border-gray-200">
+                  <div className="flex flex-col gap-2 w-full max-w-[70%]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-400 font-black text-lg md:text-xl tracking-wide shrink-0">
+                        MU-{new Date(complaint.created_at).getFullYear()}-{String(complaint.ticket_number).padStart(3, '0')}
+                      </span>
+                      <h3 className="font-bold text-xl md:text-2xl text-[#4A4A4A] truncate">
+                        {complaint.title || `Untitled Complaint`}
+                      </h3>
+                    </div>
+                    {complaint.description && (
+                      <p className="text-sm text-gray-500 line-clamp-1 mt-1 mb-2">
+                        {complaint.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${getCategoryStyle(complaint.category)}`}>
+                        {complaint.category.replace('_', ' ')}
+                      </span>
+                      <span className="text-[10px] md:text-xs text-gray-400 font-bold tracking-widest uppercase">
+                        Filed: {formattedDate}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`px-8 py-2 rounded ${bgStatusColor} text-black font-bold text-xs uppercase text-center min-w-[140px]`}>
+                    {complaint.status.replace('_', ' ')}
+                  </div>
                 </div>
-                <div className={`px-8 py-2 rounded ${bgStatusColor} text-black font-bold text-xs uppercase text-center min-w-[140px]`}>
-                  {complaint.status}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
           
           <div className="flex justify-center mt-8 mb-4">
             <Link 

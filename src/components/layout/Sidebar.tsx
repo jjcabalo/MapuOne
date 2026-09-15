@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { X, ChevronLeft } from 'lucide-react';
 import PopupDialog from '@/components/shared/PopupDialog';
+import { supabase } from '@/lib/supabase';
 
 const userRoutes = [
   { name: 'DASHBOARD', path: '/user/dashboard', icon: '/assets/icons/dashboard-icon.png' },
@@ -30,19 +31,49 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const isAdmin = pathname.startsWith('/admin');
-  const routes = isAdmin ? adminRoutes : userRoutes;
   
+  const [userRole, setUserRole] = useState<string>('');
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data } = await supabase.from('users').select('role').eq('id', session.user.id).single();
+      if (data) setUserRole(data.role);
+    };
+    
+    fetchRole();
+  }, []);
+
+  const routes = isAdmin 
+    ? adminRoutes.filter(route => {
+        if (route.name === 'MY TICKETS' && userRole === 'ADMIN') return false;
+        if (route.name === 'SETTINGS' && userRole !== 'ADMIN') return false; // Only ADMIN sees Settings
+        if (route.name === 'REPORTS' && userRole !== 'ADMIN') return false; // Only ADMIN sees Reports
+        return true;
+      })
+    : userRoutes;
 
   const handleLogoutClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setShowLogoutDialog(true);
   };
 
-  const confirmLogout = () => {
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const confirmLogout = async () => {
     setShowLogoutDialog(false);
     if (onClose) onClose();
-    router.push('/login');
+    
+    // Show full screen logout animation
+    setIsLoggingOut(true);
+    
+    // Wait for animation to play before actually signing out
+    setTimeout(async () => {
+      await supabase.auth.signOut();
+      router.push('/login');
+    }, 2500);
   };
 
   return (
@@ -181,6 +212,56 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           </p>
         </div>
       </PopupDialog>
+
+      {/* Premium Logging Out Splash Screen */}
+      {isLoggingOut && (
+        <div 
+          className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white transition-opacity duration-500 ease-in-out opacity-100"
+        >
+          <div className="relative flex flex-col items-center">
+            {/* Pulsing logo */}
+            <div className="relative mb-6">
+              <div className="absolute inset-0 bg-[#E50000] rounded-full blur-2xl opacity-20 animate-ping" style={{ animationDuration: '3s' }}></div>
+              <img 
+                src="/assets/logo/mapuone_logo.png" 
+                alt="MapúOne Loading" 
+                className="w-32 h-auto object-contain relative z-10 drop-shadow-lg" 
+              />
+            </div>
+            
+            {/* Elegant loading text */}
+            <h1 className="text-4xl font-black text-black tracking-[0.1em] uppercase">
+              MapúOne
+            </h1>
+            
+            {/* Smooth progress bar */}
+            <div className="w-48 h-1.5 bg-gray-100 rounded-full mt-8 overflow-hidden">
+              <div className="h-full bg-[#E50000] rounded-full animate-loader"></div>
+            </div>
+            <p className="text-[#E50000] font-bold text-xs uppercase tracking-widest mt-4 animate-pulse">
+              Logging out...
+            </p>
+          </div>
+
+          <style jsx>{`
+            @keyframes typing {
+              from { width: 0; }
+              to { width: 100%; }
+            }
+            @keyframes loader {
+              0% { width: 0%; transform: translateX(-100%); }
+              50% { width: 100%; transform: translateX(0%); }
+              100% { width: 100%; transform: translateX(100%); }
+            }
+            .animate-typing {
+              animation: typing 1.5s steps(30, end) forwards;
+            }
+            .animate-loader {
+              animation: loader 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            }
+          `}</style>
+        </div>
+      )}
     </>
   );
 }

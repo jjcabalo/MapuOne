@@ -3,13 +3,32 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import PopupDialog from '@/components/shared/PopupDialog';
+import { supabase } from '@/lib/supabase';
 
 export default function ForgotPasswordPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsPopupOpen(true);
+    setError('');
+    setIsLoading(true);
+    
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      
+      if (resetError) throw resetError;
+      
+      setIsPopupOpen(true);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while sending the reset link.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -39,10 +58,18 @@ export default function ForgotPasswordPage() {
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="w-full max-w-md flex flex-col gap-5 text-left pb-4">
           
+          {error && (
+            <div className="w-full p-3 text-sm text-white bg-red-500 rounded-lg">
+              {error}
+            </div>
+          )}
+
           <div className="flex flex-col gap-1 w-full">
             <label className="text-sm font-semibold text-black">Mapua Email Address</label>
             <input 
               type="email" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
             />
@@ -52,9 +79,10 @@ export default function ForgotPasswordPage() {
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mt-2">
             <button 
               type="submit" 
-              className="w-full sm:w-auto bg-primary hover:bg-red-700 border border-black text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm text-center uppercase whitespace-nowrap"
+              disabled={isLoading}
+              className="w-full sm:w-auto bg-primary hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed border border-black text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm text-center uppercase whitespace-nowrap"
             >
-              RESET PASSWORD
+              {isLoading ? 'SENDING...' : 'RESET PASSWORD'}
             </button>
             <p className="text-sm text-gray-700">
               <Link href="/login" className="font-bold text-black hover:underline">

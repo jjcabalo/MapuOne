@@ -2,188 +2,268 @@
 
 import { useState, useEffect } from 'react';
 import PopupDialog from '@/components/shared/PopupDialog';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-// Consistent category colors
 const getCategoryStyle = (cat: string) => {
-  switch (cat) {
-    case 'FACILITIES':
-      return 'bg-[#FFBFC4] text-[#E50000]';
-    case 'ACADEMIC AFFAIRS':
-      return 'bg-[#9B9BE3] text-white'; // Darker text or white text depending on contrast
-    case 'IT / TECH SUPPORT':
-      return 'bg-[#5BC0DE] text-white';
-    case 'STUDENT SERVICES':
-      return 'bg-[#95C287] text-white';
-    default:
-      return 'bg-gray-200 text-gray-800';
+  if (!cat) return 'bg-gray-200 text-gray-800';
+  const upper = cat.toUpperCase();
+  if (upper.includes('FACILITIES')) return 'bg-[#FFBFC4] text-[#E50000]';
+  if (upper.includes('ACADEMIC')) return 'bg-[#9B9BE3] text-white';
+  if (upper.includes('IT')) return 'bg-[#5BC0DE] text-white';
+  if (upper.includes('STUDENT')) return 'bg-[#95C287] text-white';
+  return 'bg-gray-200 text-gray-800';
+};
+
+const getPriorityStyle = (priority: string) => {
+  switch (priority?.toUpperCase()) {
+    case 'HIGH': return 'bg-[#FFBFC4] border-[#E50000]/30 text-[#E50000]';
+    case 'MEDIUM': return 'bg-[#FFEFB3] border-[#FFCC00]/50 text-[#997A00]';
+    case 'LOW': return 'bg-[#D1F0D4] border-[#10B981]/30 text-[#059669]';
+    default: return 'bg-gray-100 border-gray-200 text-gray-700';
   }
 };
 
-const mockCategories = [
-  { id: 1, name: 'FACILITIES', keywords: 'aircon, broken, classroom, lighting', priority: 'Low' },
-  { id: 2, name: 'ACADEMIC AFFAIRS', keywords: 'grade, professor, subject, enrollment', priority: 'Medium' },
-  { id: 3, name: 'IT / TECH SUPPORT', keywords: 'login, portal, system, wifi', priority: 'High' },
-  { id: 4, name: 'STUDENT SERVICES', keywords: 'scholarship, clearance, ID, registrar', priority: 'High' },
-];
-
-const mockUsers = [
-  { id: 1, name: 'A. Francisco', department: 'Student Services', role: 'Admin', status: 'ACTIVE' },
-  { id: 2, name: 'L. Penaflor', department: 'Facilities', role: 'Admin', status: 'ACTIVE' },
-  { id: 3, name: 'Z. Pedregosa', department: 'Tech Support', role: 'Admin', status: 'INACTIVE' },
-  { id: 4, name: 'J. Dela Cruz', department: 'IT - O', role: 'Student', status: 'ACTIVE' },
-];
+interface Keyword {
+  word: string;
+  priority: string;
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'CATEGORIES' | 'USER ACCOUNTS'>('CATEGORIES');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Category Modal State: null = closed, 'NEW' = Add Mode, or an object = Edit Mode
-  const [categoryModalData, setCategoryModalData] = useState<typeof mockCategories[0] | 'NEW' | null>(null);
-  const [categoryModalPriorityOpen, setCategoryModalPriorityOpen] = useState(false);
-
-  // User Modal State: null = closed, object = Edit Mode
-  const [userModalData, setUserModalData] = useState<typeof mockUsers[0] | null>(null);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  
+  const [categoryModalData, setCategoryModalData] = useState<any | 'NEW' | null>(null);
+  
+  const [userModalData, setUserModalData] = useState<any | null>(null);
   const [userModalRoleOpen, setUserModalRoleOpen] = useState(false);
-  const [userModalStatusOpen, setUserModalStatusOpen] = useState(false);
-  const [userModalDeptOpen, setUserModalDeptOpen] = useState(false);
   const [userModalCategories, setUserModalCategories] = useState<string[]>([]);
 
-  // Keyword Tag Input State
-  const [modalKeywords, setModalKeywords] = useState<string[]>([]);
+  const [modalKeywords, setModalKeywords] = useState<Keyword[]>([]);
   const [keywordInput, setKeywordInput] = useState('');
+  const [newKeywordPriority, setNewKeywordPriority] = useState('MEDIUM');
+  const [categorySelect, setCategorySelect] = useState('FACILITIES');
 
-  // Sync keywords when modal opens
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setIsToastVisible(true);
+    setTimeout(() => {
+      setIsToastVisible(false);
+    }, 4000);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    // Fetch categories and keywords
+    const { data: keywordsData } = await supabase.from('routing_keywords').select('*');
+    
+    const baseCategories: Record<string, any> = {
+      'FACILITIES': { name: 'FACILITIES', rawCategory: 'FACILITIES', keywords: [] },
+      'ACADEMIC_AFFAIRS': { name: 'ACADEMIC AFFAIRS', rawCategory: 'ACADEMIC_AFFAIRS', keywords: [] },
+      'IT_SUPPORT': { name: 'IT SUPPORT', rawCategory: 'IT_SUPPORT', keywords: [] },
+      'STUDENT_SERVICES': { name: 'STUDENT SERVICES', rawCategory: 'STUDENT_SERVICES', keywords: [] }
+    };
+
+    if (keywordsData) {
+      keywordsData.forEach(curr => {
+        if (!baseCategories[curr.category]) {
+          baseCategories[curr.category] = { name: curr.category.replace('_', ' '), rawCategory: curr.category, keywords: [] };
+        }
+        baseCategories[curr.category].keywords.push({ word: curr.keyword, priority: curr.priority });
+      });
+    }
+    setCategories(Object.values(baseCategories));
+
+    // Fetch users
+    const { data: usersData } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+    if (usersData) {
+      setUsers(usersData.map(u => ({
+        id: u.id,
+        name: `${u.first_name} ${u.last_name}`,
+        department: u.department || 'None',
+        role: u.role,
+        handled_categories: u.handled_categories ? u.handled_categories.split(',') : [],
+        email: u.email
+      })));
+    }
+  };
+
   useEffect(() => {
     if (categoryModalData && categoryModalData !== 'NEW') {
-      const words = categoryModalData.keywords.split(',').map(k => k.trim()).filter(Boolean);
-      setModalKeywords(words);
+      setModalKeywords(categoryModalData.keywords || []);
+      setCategorySelect(categoryModalData.rawCategory);
     } else {
       setModalKeywords([]);
+      setCategorySelect('FACILITIES');
     }
     setKeywordInput('');
+    setNewKeywordPriority('MEDIUM');
   }, [categoryModalData]);
 
-  // Sync user categories
   useEffect(() => {
-    setUserModalCategories([]);
-  }, [userModalData]);
+    if (userModalData) {
+      setUserModalCategories(userModalData.handled_categories || []);
+    } else {
+      setUserModalCategories([]);
+    }
+  }, [userModalData?.id]);
 
-  const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === ' ' || e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      const newWord = keywordInput.trim();
-      if (newWord && !modalKeywords.includes(newWord)) {
-        setModalKeywords([...modalKeywords, newWord]);
-      }
+  const handleAddKeyword = () => {
+    const word = keywordInput.trim();
+    if (word && !modalKeywords.find(k => k.word === word)) {
+      setModalKeywords([...modalKeywords, { word, priority: newKeywordPriority }]);
       setKeywordInput('');
-    } else if (e.key === 'Backspace' && keywordInput === '' && modalKeywords.length > 0) {
-      // Remove last keyword on backspace if input is empty
-      setModalKeywords(modalKeywords.slice(0, -1));
     }
   };
 
-  const removeKeyword = (wordToRemove: string) => {
-    setModalKeywords(modalKeywords.filter(w => w !== wordToRemove));
+  const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddKeyword();
+    }
   };
 
-  const filteredUsers = mockUsers.filter(u => 
+  const saveCategory = async () => {
+    if (!categorySelect) return;
+    
+    let finalKeywords = [...modalKeywords];
+    if (keywordInput.trim() && !finalKeywords.find(k => k.word === keywordInput.trim())) {
+      finalKeywords.push({ word: keywordInput.trim(), priority: newKeywordPriority });
+    }
+
+    // Clear existing for this category
+    await supabase.from('routing_keywords').delete().eq('category', categorySelect);
+    
+    // Insert new
+    if (finalKeywords.length > 0) {
+      const inserts = finalKeywords.map(k => ({
+        keyword: k.word,
+        category: categorySelect,
+        priority: k.priority
+      }));
+      await supabase.from('routing_keywords').insert(inserts);
+    }
+    
+    setCategoryModalData(null);
+    fetchData();
+  };
+
+  const saveUser = async () => {
+    if (!userModalData) return;
+    
+    // Enforce that only Handlers and Admins have handled_categories
+    const finalCategories = ['HANDLER', 'ADMIN'].includes(userModalData.role) 
+      ? (userModalCategories.length > 0 ? userModalCategories[0] : null) 
+      : null;
+
+    const finalDepartment = ['HANDLER', 'ADMIN'].includes(userModalData.role) && finalCategories
+      ? finalCategories.replace('_', ' ')
+      : userModalData.department;
+
+    const { error } = await supabase.from('users').update({
+      role: userModalData.role,
+      department: finalDepartment,
+      handled_categories: finalCategories
+    }).eq('id', userModalData.id);
+    
+    if (error) {
+      showToast("Failed to update user. This is likely an RLS permission issue. Error: " + error.message);
+      console.error(error);
+      return;
+    }
+    
+    setUserModalData(null);
+    fetchData();
+  };
+
+  const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.department.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="flex flex-col h-full font-poppins w-full">
-      
-      {/* Header */}
-      <div className="flex-shrink-0 mb-8">
-        <h1 className="text-3xl md:text-4xl font-black text-black uppercase tracking-wide mb-1">
-          Settings
-        </h1>
-        <p className="text-gray-600 text-sm">
-          Manage complaint categories, routing keywords, and administrator accounts.
-        </p>
+    <div className="flex flex-col h-full font-poppins w-full relative">
+      <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[9999] bg-white border border-gray-200 shadow-xl rounded-lg px-6 py-4 flex items-center gap-3 transition-all duration-500 ease-in-out transform ${isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-24 opacity-0 pointer-events-none'}`}>
+        <AlertCircle className="w-5 h-5 text-[#E50000]" />
+        <p className="text-sm font-bold text-gray-800">{toastMessage}</p>
       </div>
 
-      {/* Tabs Row */}
+      <div className="flex-shrink-0 mb-8">
+        <h1 className="text-3xl md:text-4xl font-black text-black uppercase tracking-wide mb-1">Settings</h1>
+        <p className="text-gray-600 text-sm">Manage complaint categories, routing keywords, and administrator accounts.</p>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTab('CATEGORIES')}
-            className={`px-6 py-2.5 rounded-lg font-bold text-sm tracking-wide transition-colors ${
-              activeTab === 'CATEGORIES' 
-                ? 'bg-black text-white' 
-                : 'bg-[#E5E5E5] text-gray-600 hover:bg-gray-300'
-            }`}
-          >
+          <button onClick={() => setActiveTab('CATEGORIES')} className={`px-6 py-2.5 rounded-lg font-bold text-sm tracking-wide transition-colors ${activeTab === 'CATEGORIES' ? 'bg-black text-white' : 'bg-[#E5E5E5] text-gray-600 hover:bg-gray-300'}`}>
             CATEGORIES
           </button>
-          <button
-            onClick={() => setActiveTab('USER ACCOUNTS')}
-            className={`px-6 py-2.5 rounded-lg font-bold text-sm tracking-wide transition-colors ${
-              activeTab === 'USER ACCOUNTS' 
-                ? 'bg-black text-white' 
-                : 'bg-[#E5E5E5] text-gray-600 hover:bg-gray-300'
-            }`}
-          >
+          <button onClick={() => setActiveTab('USER ACCOUNTS')} className={`px-6 py-2.5 rounded-lg font-bold text-sm tracking-wide transition-colors ${activeTab === 'USER ACCOUNTS' ? 'bg-black text-white' : 'bg-[#E5E5E5] text-gray-600 hover:bg-gray-300'}`}>
             USER ACCOUNTS
           </button>
         </div>
-
-        {/* Search Bar (Only visible on User Accounts tab) */}
         {activeTab === 'USER ACCOUNTS' && (
-          <input
-            type="text"
-            placeholder="Search user..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-sm text-black placeholder-gray-400 shadow-sm"
-          />
+          <input type="text" placeholder="Search user..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg text-sm" />
         )}
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar pb-10">
-        
         {activeTab === 'CATEGORIES' && (
           <div className="flex flex-col w-full min-w-[800px]">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[25%]">Category</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[45%]">Routing Keywords</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[20%]">Default Priority</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[10%] text-right"></th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[25%]">Category</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[65%]">Routing Keywords & Priority</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[10%] text-right"></th>
                 </tr>
               </thead>
               <tbody>
-                {mockCategories.map((cat) => (
-                  <tr key={cat.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-2">
-                      <span className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider inline-block ${getCategoryStyle(cat.name)}`}>
-                        {cat.name}
-                      </span>
+                {categories.map((cat, i) => (
+                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="py-4 px-2 align-top"><span className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase ${getCategoryStyle(cat.name)}`}>{cat.name}</span></td>
+                    <td className="py-4 px-2 text-sm text-gray-700">
+                      {cat.keywords.length > 0 ? (
+                        <div className="flex flex-col gap-3">
+                          {['HIGH', 'MEDIUM', 'LOW'].map(priorityLevel => {
+                            const kws = cat.keywords.filter((k: Keyword) => k.priority === priorityLevel);
+                            if (kws.length === 0) return null;
+                            return (
+                              <div key={priorityLevel} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3">
+                                <span className={`text-[10px] font-black sm:w-16 sm:pt-1.5 tracking-wider uppercase ${priorityLevel === 'HIGH' ? 'text-[#E50000]' : priorityLevel === 'MEDIUM' ? 'text-[#997A00]' : 'text-[#059669]'}`}>
+                                  {priorityLevel}
+                                </span>
+                                <div className="flex flex-wrap gap-2 flex-1">
+                                  {kws.map((kw: Keyword, idx: number) => (
+                                    <span key={idx} className={`border px-3 py-1 rounded-md text-[10px] font-black uppercase shadow-sm ${getPriorityStyle(kw.priority)}`}>
+                                      {kw.word}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">No routing keywords set</span>
+                      )}
                     </td>
-                    <td className="py-4 px-2 text-sm text-gray-700">{cat.keywords}</td>
-                    <td className="py-4 px-2 text-sm text-gray-700">{cat.priority}</td>
-                    <td className="py-4 px-2 text-right">
-                      <button 
-                        onClick={() => setCategoryModalData(cat)}
-                        className="text-black font-black text-xs hover:text-primary uppercase tracking-wide"
-                      >
-                        Edit
-                      </button>
-                    </td>
+                    <td className="py-4 px-2 text-right align-top"><button onClick={() => setCategoryModalData(cat)} className="text-black font-black text-xs hover:text-primary uppercase">Edit</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            
             <div className="mt-8">
-              <button 
-                onClick={() => setCategoryModalData('NEW')}
-                className="bg-[#E50000] hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-sm transition-colors uppercase tracking-wide shadow-sm flex items-center gap-2"
-              >
+              <button onClick={() => setCategoryModalData('NEW')} className="bg-[#E50000] hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg text-sm uppercase flex items-center gap-2">
                 <span className="text-lg leading-none mb-0.5">+</span> Add Category
               </button>
             </div>
@@ -195,357 +275,208 @@ export default function SettingsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[25%]">Name</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[30%]">Department</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[20%]">Role</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[15%]">Status</th>
-                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase tracking-wider w-[10%] text-right"></th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[25%]">Name</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[30%]">Department</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[20%]">Role</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[15%]">Status</th>
+                  <th className="py-4 px-2 font-bold text-gray-500 text-xs uppercase w-[10%] text-right"></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-4 px-2 text-sm text-gray-800">{user.name}</td>
-                    <td className="py-4 px-2 text-sm text-gray-800">{user.department}</td>
+                    <td className="py-4 px-2 text-sm text-gray-800">
+                      {user.department !== 'None' ? (
+                        <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${getCategoryStyle(user.department)}`}>
+                          {user.department}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic">None</span>
+                      )}
+                    </td>
                     <td className="py-4 px-2 text-sm text-gray-800">{user.role}</td>
-                    <td className="py-4 px-2">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider inline-block ${
-                        user.status === 'ACTIVE' ? 'bg-[#D1F0D4] text-[#10B981]' : 'bg-[#FFBFC4] text-[#E50000]'
-                      }`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-2 text-right">
-                      <button 
-                        onClick={() => setUserModalData(user)}
-                        className="text-black font-black text-xs hover:text-primary uppercase tracking-wide"
-                      >
-                        Edit
-                      </button>
-                    </td>
+                    <td className="py-4 px-2"><span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-[#D1F0D4] text-[#10B981]">ACTIVE</span></td>
+                    <td className="py-4 px-2 text-right"><button onClick={() => setUserModalData(user)} className="text-black font-black text-xs hover:text-primary uppercase">Edit</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-20 text-gray-500 font-medium text-sm">
-                No users match your search.
-              </div>
-            )}
           </div>
         )}
-
       </div>
 
-      {/* Dynamic Category Popup Dialog (Handles Add & Edit) */}
-      <PopupDialog
-        isOpen={categoryModalData !== null}
-        hideHeader={true}
-        maxWidth="max-w-xl"
-        overflowVisible={true}
-        footer={
-          <div className="w-full flex justify-end gap-4 px-4 pb-2">
-            <button 
-              onClick={() => setCategoryModalData(null)}
-              className="px-6 py-3 bg-[#D4D4D4] hover:bg-gray-400 text-black rounded-lg font-bold text-sm transition-colors uppercase tracking-wide"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={() => setCategoryModalData(null)}
-              className="px-6 py-3 bg-[#E50000] hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide"
-            >
-              {categoryModalData !== 'NEW' ? 'Save Category' : 'Create Category'}
-            </button>
-          </div>
-        }
-      >
-        <div className="flex flex-col px-4 pt-2">
-          <h2 className="text-3xl font-black text-black text-center mb-10">
-            {categoryModalData !== 'NEW' ? 'Edit Category' : 'Add Category'}
-          </h2>
-          
+      <PopupDialog isOpen={categoryModalData !== null} hideHeader={true} maxWidth="max-w-2xl" overflowVisible={true} footer={
+        <div className="w-full flex justify-end gap-4 px-4 pb-2">
+          <button onClick={() => setCategoryModalData(null)} className="px-6 py-3 bg-[#D4D4D4] text-black rounded-lg font-bold text-sm uppercase">Cancel</button>
+          <button onClick={saveCategory} className="px-6 py-3 bg-[#E50000] text-white rounded-lg font-bold text-sm uppercase">{categoryModalData !== 'NEW' ? 'Save Category' : 'Create Category'}</button>
+        </div>
+      }>
+        <div className="flex flex-col px-4 pt-2 max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <h2 className="text-3xl font-black text-center mb-8">{categoryModalData !== 'NEW' ? 'Edit Category' : 'Add Category'}</h2>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Category Name</label>
-              <select 
-                defaultValue={categoryModalData !== 'NEW' && categoryModalData ? categoryModalData.name : ''}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black bg-white"
-              >
-                <option value="" disabled>Select Department</option>
-                <option value="FACILITIES">Facilities</option>
-                <option value="ACADEMIC AFFAIRS">Academic Affairs</option>
-                <option value="IT / TECH SUPPORT">IT / Tech Support</option>
-                <option value="STUDENT SERVICES">Student Services</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Routing Keywords</label>
-              
-              <div className="flex flex-wrap gap-2 w-full p-2 border border-gray-300 rounded-lg bg-white min-h-[48px] focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary focus-within:border-transparent">
-                {modalKeywords.map(word => (
-                  <div key={word} className="flex items-center gap-1.5 px-3 py-1 bg-gray-100 border border-gray-200 rounded-md text-sm font-medium text-gray-700">
-                    {word}
-                    <button 
-                      onClick={() => removeKeyword(word)}
-                      className="text-gray-400 hover:text-[#E50000] hover:bg-red-50 rounded-full p-0.5 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                
+              <label className="text-gray-600 font-black text-xs uppercase">Category Name</label>
+              {categoryModalData === 'NEW' ? (
                 <input 
                   type="text" 
-                  value={keywordInput}
-                  onChange={(e) => setKeywordInput(e.target.value)}
-                  onKeyDown={handleKeywordKeyDown}
-                  placeholder={modalKeywords.length === 0 ? "Type a keyword and press Space..." : ""}
-                  className="flex-1 min-w-[150px] bg-transparent focus:outline-none text-sm text-black px-2 py-1"
+                  value={categorySelect} 
+                  onChange={e => setCategorySelect(e.target.value)} 
+                  placeholder="e.g. HUMAN_RESOURCES"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white uppercase" 
                 />
+              ) : (
+                <input 
+                  type="text" 
+                  value={categorySelect} 
+                  disabled 
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-gray-100 uppercase" 
+                />
+              )}
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-gray-600 font-black text-xs uppercase">Routing Keywords (Per-Keyword Priority)</label>
+              <div className="flex flex-col gap-3 w-full p-4 border border-gray-300 rounded-lg bg-gray-50">
+                
+                {modalKeywords.length > 0 ? modalKeywords.map((kw, idx) => (
+                  <div key={idx} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 border rounded-lg shadow-sm ${getPriorityStyle(kw.priority)}`}>
+                    <span className="font-black text-sm ml-1 uppercase">{kw.word}</span>
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
+                      <select 
+                        value={kw.priority} 
+                        onChange={(e) => {
+                          const newKws = [...modalKeywords];
+                          newKws[idx].priority = e.target.value;
+                          setModalKeywords(newKws);
+                        }}
+                        className={`px-3 py-1.5 border rounded-md text-xs font-bold focus:outline-none ${getPriorityStyle(kw.priority)} bg-white/50`}
+                      >
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                      </select>
+                      <button type="button" onClick={() => setModalKeywords(modalKeywords.filter((_, i) => i !== idx))} className="p-1.5 opacity-60 hover:opacity-100 hover:bg-white/50 rounded-md transition-colors"><X className="w-4 h-4" /></button>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-sm text-gray-400 italic py-2 text-center">No keywords added yet.</p>
+                )}
+                
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+                  <input type="text" value={keywordInput} onChange={(e) => setKeywordInput(e.target.value)} onKeyDown={handleKeywordKeyDown} placeholder="New keyword..." className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-black" />
+                  <div className="flex items-center gap-2">
+                    <select value={newKeywordPriority} onChange={(e) => setNewKeywordPriority(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold w-32 focus:outline-none focus:border-black">
+                      <option value="LOW">LOW PRIORITY</option>
+                      <option value="MEDIUM">MEDIUM PRIORITY</option>
+                      <option value="HIGH">HIGH PRIORITY</option>
+                    </select>
+                    <button type="button" onClick={handleAddKeyword} className="px-5 py-2 bg-black hover:bg-gray-800 text-white text-sm font-bold rounded-lg whitespace-nowrap transition-colors">Add</button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Default Priority</label>
-              <div className="relative w-48 z-40">
-                <button 
-                  type="button" 
-                  onClick={() => setCategoryModalPriorityOpen(!categoryModalPriorityOpen)}
-                  className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
-                >
-                  {categoryModalData !== 'NEW' && categoryModalData ? categoryModalData.priority.toUpperCase() : 'LOW'}
-                  <span className={`text-gray-400 text-[10px] transform transition-transform ${categoryModalPriorityOpen ? 'rotate-90' : ''}`}>▶</span>
-                </button>
-                {categoryModalPriorityOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-[0_4px_15px_-3px_rgba(0,0,0,0.15)] border border-gray-200 overflow-hidden flex flex-col z-50">
-                    {['LOW', 'MEDIUM', 'HIGH'].map((opt, i, arr) => (
-                      <button 
-                        key={opt} type="button" 
-                        onClick={() => { 
-                          if (categoryModalData !== 'NEW' && categoryModalData) {
-                            setCategoryModalData({ ...categoryModalData, priority: opt });
-                          }
-                          setCategoryModalPriorityOpen(false); 
-                        }}
-                        className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-                      >
-                        {opt}
-                        {((categoryModalData !== 'NEW' && categoryModalData ? categoryModalData.priority.toUpperCase() : 'LOW') === opt) && <span className="text-primary text-xs">✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </PopupDialog>
 
-      {/* Edit User Popup Dialog */}
-      <PopupDialog
-        isOpen={userModalData !== null}
-        hideHeader={true}
-        maxWidth="max-w-xl"
-        overflowVisible={true}
-        footer={
-          <div className="w-full flex justify-end gap-4 px-4 pb-2">
-            <button 
-              onClick={() => setUserModalData(null)}
-              className="px-6 py-3 bg-[#D4D4D4] hover:bg-gray-400 text-black rounded-lg font-bold text-sm transition-colors uppercase tracking-wide"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={() => setUserModalData(null)}
-              className="px-6 py-3 bg-[#E50000] hover:bg-red-700 text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide"
-            >
-              Save Changes
-            </button>
-          </div>
-        }
-      >
+      <PopupDialog isOpen={userModalData !== null} hideHeader={true} maxWidth="max-w-xl" overflowVisible={true} footer={
+        <div className="w-full flex justify-end gap-4 px-4 pb-2">
+          <button onClick={() => setUserModalData(null)} className="px-6 py-3 bg-[#D4D4D4] text-black rounded-lg font-bold text-sm uppercase">Cancel</button>
+          <button onClick={saveUser} className="px-6 py-3 bg-[#E50000] text-white rounded-lg font-bold text-sm uppercase">Save Changes</button>
+        </div>
+      }>
         <div className="flex flex-col px-4 pt-2">
-          <h2 className="text-3xl font-black text-black text-center mb-10">Edit User Account</h2>
-          
+          <h2 className="text-3xl font-black text-center mb-10">Edit User Account</h2>
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Full Name</label>
-              <input 
-                type="text" 
-                defaultValue={userModalData ? userModalData.name : ''}
-                disabled
-                className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500 cursor-not-allowed"
-              />
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Name is synced from MapuOne SSO</span>
+              <label className="text-gray-600 font-black text-xs uppercase">Full Name</label>
+              <input type="text" defaultValue={userModalData ? userModalData.name : ''} disabled className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500" />
             </div>
-
             <div className="flex flex-col gap-2">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Email</label>
-              <input 
-                type="text" 
-                defaultValue={userModalData ? `${userModalData.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@mapua.edu.ph` : ''}
-                disabled
-                className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500 cursor-not-allowed"
-              />
+              <label className="text-gray-600 font-black text-xs uppercase">Email</label>
+              <input type="text" defaultValue={userModalData ? userModalData.email : ''} disabled className="w-full px-4 py-3 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-500" />
+              <div className="flex justify-start mt-1">
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    if (!userModalData || !userModalData.email) return;
+                    const btn = document.getElementById('reset-btn-text');
+                    if (btn) btn.innerText = 'Sending...';
+                    
+                    const { error } = await supabase.auth.resetPasswordForEmail(userModalData.email, {
+                      redirectTo: `${window.location.origin}/update-password`,
+                    });
+                    
+                    if (error) {
+                      showToast(`Error: ${error.message}`);
+                      if (btn) btn.innerText = 'Send reset password link';
+                    } else {
+                      showToast('Password reset link sent successfully!');
+                      if (btn) btn.innerText = 'Send reset password link';
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-bold tracking-wide uppercase transition-colors"
+                >
+                  <span id="reset-btn-text">Send reset password link</span>
+                </button>
+              </div>
             </div>
-
             <div className="flex flex-col sm:flex-row gap-6">
               <div className="flex flex-col gap-2 w-full">
-                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">System Role</label>
+                <label className="text-gray-600 font-black text-xs uppercase">System Role</label>
                 <div className="relative w-full z-40">
                   <button 
                     type="button" 
-                    onClick={() => setUserModalRoleOpen(!userModalRoleOpen)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
+                    onClick={() => {
+                      if (userModalData && userModalData.role === 'ADMIN') {
+                        showToast("You cannot change the role of the System Admin.");
+                        return;
+                      }
+                      setUserModalRoleOpen(!userModalRoleOpen);
+                    }} 
+                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-left"
                   >
-                    {userModalData ? userModalData.role : 'Student'}
-                    <span className={`text-gray-400 text-[10px] transform transition-transform ${userModalRoleOpen ? 'rotate-90' : ''}`}>▶</span>
+                    {userModalData ? userModalData.role : 'STUDENT'}
+                    <span className="text-gray-400 text-[10px]">▶</span>
                   </button>
                   {userModalRoleOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                      {['Student', 'Admin', 'Staff'].map((opt, i, arr) => (
-                        <button 
-                          key={opt} type="button" 
-                          onClick={() => { 
-                            if (userModalData) {
-                              setUserModalData({ ...userModalData, role: opt });
-                            }
-                            setUserModalRoleOpen(false); 
-                          }}
-                          className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-                        >
-                          {opt}
-                          {((userModalData ? userModalData.role : 'Student') === opt) && <span className="text-primary text-xs">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 w-full">
-                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Account Status</label>
-                <div className="relative w-full z-30">
-                  <button 
-                    type="button" 
-                    onClick={() => setUserModalStatusOpen(!userModalStatusOpen)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
-                  >
-                    {userModalData ? userModalData.status : 'ACTIVE'}
-                    <span className={`text-gray-400 text-[10px] transform transition-transform ${userModalStatusOpen ? 'rotate-90' : ''}`}>▶</span>
-                  </button>
-                  {userModalStatusOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                      {['ACTIVE', 'INACTIVE'].map((opt, i, arr) => (
-                        <button 
-                          key={opt} type="button" 
-                          onClick={() => { 
-                            if (userModalData) {
-                              setUserModalData({ ...userModalData, status: opt });
-                            }
-                            setUserModalStatusOpen(false); 
-                          }}
-                          className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-                        >
-                          {opt}
-                          {((userModalData ? userModalData.status : 'ACTIVE') === opt) && <span className="text-primary text-xs">✓</span>}
-                        </button>
+                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 z-50 flex flex-col">
+                      {['STUDENT', 'FACULTY', 'STAFF', 'HANDLER', 'ADMIN'].map((opt) => (
+                        <button key={opt} type="button" onClick={() => { if (userModalData) setUserModalData({ ...userModalData, role: opt }); setUserModalRoleOpen(false); }} className="px-4 py-3 text-sm text-left hover:bg-gray-100">{opt}</button>
                       ))}
                     </div>
                   )}
                 </div>
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-6">
-              <div className="flex flex-col gap-2 w-full">
-                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Assigned Department</label>
-                <div className="relative w-full z-20">
-                  <button 
-                    type="button" 
-                    onClick={() => setUserModalDeptOpen(!userModalDeptOpen)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-sm font-medium text-black hover:bg-gray-50 transition-colors text-left"
-                  >
-                    {userModalData ? userModalData.department : 'Student Services'}
-                    <span className={`text-gray-400 text-[10px] transform transition-transform ${userModalDeptOpen ? 'rotate-90' : ''}`}>▶</span>
-                  </button>
-                  {userModalDeptOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden flex flex-col z-50">
-                      {['Student Services', 'Facilities', 'Tech Support', 'IT - O', 'Academic Affairs', 'None'].map((opt, i, arr) => (
-                        <button 
-                          key={opt} type="button" 
-                          onClick={() => { 
-                            if (userModalData) {
-                              setUserModalData({ ...userModalData, department: opt });
-                            }
-                            setUserModalDeptOpen(false); 
-                          }}
-                          className={`flex items-center justify-between px-4 py-3 text-sm font-medium text-black hover:bg-gray-100 transition-colors text-left ${i !== arr.length - 1 ? 'border-b border-gray-100' : ''}`}
-                        >
-                          {opt}
-                          {((userModalData ? userModalData.department : 'Student Services') === opt) && <span className="text-primary text-xs">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 w-full">
-                <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Handled Categories</label>
-                
+            {['HANDLER', 'ADMIN'].includes(userModalData ? userModalData.role : '') && (
+              <div className="flex flex-col gap-2">
+                <label className="text-gray-600 font-black text-xs uppercase">Department / Category Assignment</label>
                 <div className="flex flex-col gap-2">
-                  <div className="flex flex-wrap gap-2 w-full p-2 border border-gray-300 rounded-lg bg-white min-h-[48px]">
-                    {userModalCategories.length === 0 && (
-                      <span className="text-gray-400 text-sm italic px-2 py-1">No categories handled</span>
-                    )}
-                    {userModalCategories.map(cat => (
-                      <div key={cat} className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${getCategoryStyle(cat)}`}>
-                        {cat}
-                        <button 
-                          onClick={() => setUserModalCategories(userModalCategories.filter(c => c !== cat))}
-                          className="hover:opacity-70 transition-opacity"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  
                   <select 
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value && !userModalCategories.includes(e.target.value)) {
-                        setUserModalCategories([...userModalCategories, e.target.value]);
+                    value={userModalCategories.length > 0 ? userModalCategories[0] : ''} 
+                    onChange={(e) => { 
+                      if (e.target.value) {
+                        setUserModalCategories([e.target.value]); 
+                        setUserModalData({...userModalData, department: e.target.value.replace('_', ' ')});
                       }
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary bg-white"
+                    }} 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
                   >
-                    <option value="" disabled>+ Add Category...</option>
-                    {mockCategories.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
+                    <option value="" disabled>Select Department/Category...</option>
+                    {categories.map(c => (
+                      <option key={c.rawCategory} value={c.rawCategory}>{c.name}</option>
                     ))}
                   </select>
+                  <p className="text-[10px] text-gray-500 italic uppercase">This sets both the user's Department and their Handled Category.</p>
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-2 mt-2 pt-6 border-t border-gray-100">
-              <label className="text-gray-600 font-black text-xs uppercase tracking-wide">Security</label>
-              <button 
-                type="button"
-                className="w-full sm:w-auto self-start px-5 py-2.5 border-2 border-[#E50000] text-[#E50000] hover:bg-[#E50000] hover:text-white rounded-lg font-bold text-sm transition-colors uppercase tracking-wide mt-1"
-              >
-                Send Password Reset Link
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </PopupDialog>
-
     </div>
   );
 }

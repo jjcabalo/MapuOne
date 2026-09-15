@@ -3,14 +3,49 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import PopupDialog from '@/components/shared/PopupDialog';
+import { supabase } from '@/lib/supabase';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function RegisterPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsPopupOpen(true);
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) throw signUpError;
+
+      setIsPopupOpen(true);
+    } catch (err: any) {
+      if (err.message === 'Database error saving new user') {
+        setError('This email is not authorized. Please use a valid, registered Mapúa email address.');
+      } else {
+        setError(err.message || 'An error occurred during registration.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -40,12 +75,21 @@ export default function RegisterPage() {
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="w-full max-w-4xl flex flex-col gap-4 md:gap-5 text-left pb-4">
           
+          {/* Error Message */}
+          {error && (
+            <div className="w-full md:w-1/2 p-3 text-sm text-white bg-red-500 rounded-lg">
+              {error}
+            </div>
+          )}
+
           {/* Row 1 - Email Address */}
           <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Mapua Email Address</label>
               <input 
                 type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
               />
@@ -56,19 +100,41 @@ export default function RegisterPage() {
           <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Password</label>
-              <input 
-                type="password" 
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
+              <div className="relative w-full">
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Confirm Password</label>
-              <input 
-                type="password" 
-                required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
+              <div className="relative w-full">
+                <input 
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black pr-10"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -97,9 +163,10 @@ export default function RegisterPage() {
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mt-4">
             <button 
               type="submit" 
-              className="w-full sm:w-auto bg-primary hover:bg-red-700 border border-black text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm text-center uppercase whitespace-nowrap"
+              disabled={isLoading}
+              className="w-full sm:w-auto bg-primary hover:bg-red-700 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed border border-black text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm text-center uppercase whitespace-nowrap"
             >
-              CREATE ACCOUNT
+              {isLoading ? 'CREATING...' : 'CREATE ACCOUNT'}
             </button>
             <p className="text-sm text-gray-700">
               Already have Account?{' '}

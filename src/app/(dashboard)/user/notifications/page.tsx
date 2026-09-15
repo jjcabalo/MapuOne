@@ -1,74 +1,132 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MessageSquare, Clock, Check } from 'lucide-react';
-
-type NotificationType = 'message' | 'status_progress' | 'status_alert' | 'status_resolved';
+import { supabase } from '@/lib/supabase';
 
 interface Notification {
-  id: number;
+  id: string;
+  complaintId: string | null;
   caseId: string;
   message: string;
   date: string;
-  type: NotificationType;
+  type: string;
   read: boolean;
   group: 'TODAY' | 'EARLIER';
 }
 
-const mockNotifications: Notification[] = [
-  { id: 1, caseId: 'MU-2026-111', message: 'Admin requested clarification: "Please attach a photo of the recorded grade sheet."', date: 'Aug 10, 2026', type: 'message', read: false, group: 'TODAY' },
-  { id: 2, caseId: 'MU-2026-000', message: 'Status changed to In Progress — assigned to Facilities Management.', date: 'Aug 10, 2026', type: 'status_progress', read: false, group: 'TODAY' },
-  { id: 3, caseId: 'MU-2026-333', message: 'Case marked Pending Response — a reply is needed to avoid delay.', date: 'Aug 10, 2026', type: 'status_alert', read: false, group: 'TODAY' },
-  { id: 4, caseId: 'MU-2026-222', message: 'Case resolved and closed by IT / Technical Support.', date: 'Jul 25, 2026', type: 'status_resolved', read: true, group: 'EARLIER' },
-  { id: 5, caseId: 'MU-2026-444', message: 'Status changed to In Progress — assigned to Facilities Management.', date: 'Jul 9, 2026', type: 'status_progress', read: true, group: 'EARLIER' },
-];
-
 const filters = ['ALL', 'UNREAD', 'STATUS UPDATE', 'MESSAGES'];
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('ALL');
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Filter Logic
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          title,
+          message,
+          is_read,
+          created_at,
+          complaint_id,
+          complaints(ticket_number)
+        `)
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+        
+      if (data) {
+        const formatted = data.map(d => {
+          const createdAt = new Date(d.created_at);
+          return {
+            id: d.id,
+            complaintId: d.complaint_id,
+            caseId: d.complaints ? `MU-${createdAt.getFullYear()}-${String((d.complaints as any).ticket_number).padStart(3, '0')}` : 'SYS',
+            message: d.message,
+            date: createdAt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            type: (d.title || '').toLowerCase().includes('message') ? 'message' :
+                  (d.message || '').toLowerCase().includes('resolved') ? 'resolved' :
+                  (d.message || '').toLowerCase().includes('in progress') ? 'progress' :
+                  (d.message || '').toLowerCase().includes('pending response') ? 'pending' : 'update',
+            read: d.is_read,
+            group: createdAt.toDateString() === new Date().toDateString() ? 'TODAY' : 'EARLIER'
+          };
+        }) as Notification[];
+        setNotifications(formatted);
+      }
+      setIsLoading(false);
+    };
+    
+    fetchNotifications();
+
+    const notifChannel = supabase.channel('user-notifications-page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => {
+        fetchNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notifChannel);
+    };
+  }, []);
+
   const filteredNotifications = notifications.filter((n) => {
     if (activeFilter === 'ALL') return true;
     if (activeFilter === 'UNREAD') return !n.read;
-    if (activeFilter === 'STATUS UPDATE') return n.type.startsWith('status');
+    if (activeFilter === 'STATUS UPDATE') return n.type !== 'message';
     if (activeFilter === 'MESSAGES') return n.type === 'message';
     return true;
   });
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    
+    await supabase.from('notifications').update({ is_read: true }).eq('user_id', session.user.id).eq('is_read', false);
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
-  const getIcon = (type: NotificationType) => {
-    switch (type) {
-      case 'message':
-        return <MessageSquare className="w-5 h-5 text-blue-400" />;
-      case 'status_progress':
-        return <Clock className="w-5 h-5 text-yellow-500" />;
-      case 'status_alert':
-        return (
-          <div className="w-5 h-5 bg-[#FFBFC4] rounded-full flex items-center justify-center">
-            <span className="text-white font-black text-xs">!</span>
-          </div>
-        );
-      case 'status_resolved':
-        return <Check className="w-5 h-5 text-[#10B981]" strokeWidth={3} />;
-      default:
-        return null;
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await supabase.from('notifications').update({ is_read: true }).eq('id', notification.id);
+        setNotifications(notifications.map(n => n.id === notification.id ? { ...n, read: true } : n));
+      }
+    }
+    
+    if (notification.complaintId) {
+      router.push(`/user/my-cases?caseId=${notification.complaintId}`);
     }
   };
 
-  // Grouping
+  const getIcon = (type: string) => {
+    if (type === 'message') return <MessageSquare className="w-6 h-6 text-[#6B9DF2]" strokeWidth={2} />;
+    if (type === 'progress') return <Clock className="w-6 h-6 text-[#E2BC3C]" strokeWidth={2} />;
+    if (type === 'resolved') return <Check className="w-6 h-6 text-[#24CC6A]" strokeWidth={3} />;
+    
+    // Default alert style (pending response, priority change, etc.)
+    return (
+      <div className="w-6 h-6 bg-[#FFC0C5] rounded-full flex items-center justify-center">
+        <span className="text-white font-bold text-sm">!</span>
+      </div>
+    );
+  };
+
   const todayNotifications = filteredNotifications.filter(n => n.group === 'TODAY');
   const earlierNotifications = filteredNotifications.filter(n => n.group === 'EARLIER');
 
   return (
     <div className="flex flex-col h-full font-poppins w-full">
       
-      {/* Title Header */}
       <div className="flex-shrink-0 mb-6">
         <h1 className="text-3xl md:text-4xl font-black text-black uppercase tracking-wide mb-1">
           Notifications
@@ -77,7 +135,6 @@ export default function NotificationsPage() {
           Stay on top of every case update
         </p>
 
-        {/* Filters and Mark Read */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           
           <div className="flex flex-wrap gap-2">
@@ -105,69 +162,76 @@ export default function NotificationsPage() {
         </div>
       </div>
 
-      {/* Scrollable Notifications List */}
       <div className="flex-1 md:overflow-y-auto pr-2 custom-scrollbar pb-10">
         
-        {todayNotifications.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-black text-xs font-black uppercase tracking-wide mb-4">TODAY</h2>
-            <div className="flex flex-col gap-3">
-              {todayNotifications.map(notification => (
-                <div 
-                  key={notification.id} 
-                  className={`border border-gray-300 rounded-lg p-5 flex items-center justify-between gap-4 transition-colors ${
-                    notification.read ? 'bg-[#EEEEEE]' : 'bg-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="flex-shrink-0 w-8 flex justify-center">
-                      {getIcon(notification.type)}
+        {isLoading ? (
+          <div className="text-center py-20 text-gray-500 font-medium uppercase tracking-widest">
+            Loading Notifications...
+          </div>
+        ) : (
+          <>
+            {todayNotifications.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-black text-xs font-black uppercase tracking-wide mb-4">TODAY</h2>
+                <div className="flex flex-col gap-3">
+                  {todayNotifications.map(notification => (
+                    <div 
+                      key={notification.id} 
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`border border-gray-300 rounded-lg p-5 flex items-center justify-between gap-4 transition-colors cursor-pointer hover:border-primary ${
+                        notification.read ? 'bg-[#EEEEEE]' : 'bg-white shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="flex-shrink-0 w-8 flex justify-center mt-1">
+                          {getIcon(notification.type)}
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-black text-sm">{notification.caseId}</span>
+                          <p className="text-black text-sm">{notification.message}</p>
+                        </div>
+                      </div>
+                      <span className="text-gray-500 text-[11px] flex-shrink-0 ml-4 self-start mt-1 whitespace-nowrap">{notification.date}</span>
                     </div>
-                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                      <span className="font-bold text-black text-sm">{notification.caseId}</span>
-                      <span className="text-gray-700 text-sm hidden md:inline-block">—</span>
-                      <p className="text-black text-sm">{notification.message}</p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-black text-xs flex-shrink-0">{notification.date}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {earlierNotifications.length > 0 && (
-          <div>
-            <h2 className="text-black text-xs font-black uppercase tracking-wide mb-4">EARLIER</h2>
-            <div className="flex flex-col gap-3">
-              {earlierNotifications.map(notification => (
-                <div 
-                  key={notification.id} 
-                  className={`border border-gray-300 rounded-lg p-5 flex items-center justify-between gap-4 transition-colors ${
-                    notification.read ? 'bg-[#EEEEEE]' : 'bg-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="flex-shrink-0 w-8 flex justify-center">
-                      {getIcon(notification.type)}
+            {earlierNotifications.length > 0 && (
+              <div>
+                <h2 className="text-black text-xs font-black uppercase tracking-wide mb-4">EARLIER</h2>
+                <div className="flex flex-col gap-3">
+                  {earlierNotifications.map(notification => (
+                    <div 
+                      key={notification.id} 
+                      onClick={() => handleNotificationClick(notification)}
+                      className={`border border-gray-300 rounded-lg p-5 flex items-center justify-between gap-4 transition-colors cursor-pointer hover:border-primary ${
+                        notification.read ? 'bg-[#EEEEEE]' : 'bg-white shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="flex-shrink-0 w-8 flex justify-center mt-1">
+                          {getIcon(notification.type)}
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-black text-sm">{notification.caseId}</span>
+                          <p className="text-black text-sm">{notification.message}</p>
+                        </div>
+                      </div>
+                      <span className="text-gray-500 text-[11px] flex-shrink-0 ml-4 self-start mt-1 whitespace-nowrap">{notification.date}</span>
                     </div>
-                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2">
-                      <span className="font-bold text-black text-sm">{notification.caseId}</span>
-                      <span className="text-gray-700 text-sm hidden md:inline-block">—</span>
-                      <p className="text-black text-sm">{notification.message}</p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-black text-xs flex-shrink-0">{notification.date}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {filteredNotifications.length === 0 && (
-          <div className="text-center py-20 text-gray-500 font-medium">
-            You're all caught up! No notifications to show.
-          </div>
+            {filteredNotifications.length === 0 && (
+              <div className="text-center py-20 text-gray-500 font-medium">
+                You're all caught up! No notifications to show.
+              </div>
+            )}
+          </>
         )}
       </div>
 
