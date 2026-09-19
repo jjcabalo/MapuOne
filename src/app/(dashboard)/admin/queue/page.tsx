@@ -164,6 +164,7 @@ export default function AdminCaseQueuePage() {
         priority: d.priority,
         matched_keyword: d.matched_keyword,
         created_at: d.created_at,
+        updated_at: d.updated_at,
         ticket_number: d.ticket_number,
         attachments: d.complaint_attachments || []
       }));
@@ -177,13 +178,13 @@ export default function AdminCaseQueuePage() {
         return f;
       });
       
-      // Sort by priority (HIGH > MEDIUM > LOW) and then by submission date (newest first)
+      // Sort by priority (HIGH > MEDIUM > LOW) and then by updated date (newest first)
       const priorityOrder: Record<string, number> = { 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
       populated.sort((a, b) => {
         const pA = priorityOrder[a.priority] || 0;
         const pB = priorityOrder[b.priority] || 0;
         if (pA !== pB) return pB - pA; // Higher priority first
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); // Older first
+        return new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime(); // Newest updated first
       });
 
       setCases(populated);
@@ -248,9 +249,11 @@ export default function AdminCaseQueuePage() {
       resolved_at: new Date().toISOString()
     };
 
-    if (currentUserProfile?.role === 'ADMIN') {
-      updates.priority = priority;
-      updates.category = category;
+    if (currentUserProfile?.role === 'ADMIN' || currentUserProfile?.role === 'HANDLER') {
+      if (currentUserProfile?.role === 'ADMIN') {
+        updates.priority = priority;
+        updates.category = category;
+      }
       updates.assigned_handler_id = assigned === 'UNASSIGNED' ? null : assigned;
     }
 
@@ -334,24 +337,26 @@ export default function AdminCaseQueuePage() {
 
       {!selectedCase ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 flex-shrink-0">
-            <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'OPEN' ? null : 'OPEN')} className={`bg-[#FFBFC4] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'OPEN' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
-              <span className="font-bold text-xl text-black uppercase z-10">Open</span>
-              <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{openCount}</span>
+          {currentUserProfile?.role !== 'HANDLER' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10 flex-shrink-0">
+              <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'OPEN' ? null : 'OPEN')} className={`bg-[#FFBFC4] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'OPEN' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
+                <span className="font-bold text-xl text-black uppercase z-10">Open</span>
+                <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{openCount}</span>
+              </div>
+              <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'IN_PROCESS' ? null : 'IN_PROCESS')} className={`bg-[#FDF2C8] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'IN_PROCESS' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
+                <span className="font-bold text-xl text-black uppercase z-10 w-28 md:w-auto leading-tight md:leading-normal">In Progress</span>
+                <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{inProgressCount}</span>
+              </div>
+              <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'PENDING_RESPONSE' ? null : 'PENDING_RESPONSE')} className={`bg-[#EBDDD0] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'PENDING_RESPONSE' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
+                <span className="font-bold text-xl text-black uppercase z-10">Pending</span>
+                <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{pendingCount}</span>
+              </div>
+              <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'RESOLVED' ? null : 'RESOLVED')} className={`bg-[#D1F0D4] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'RESOLVED' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
+                <span className="font-bold text-xl text-black uppercase z-10">Resolved</span>
+                <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{resolvedCount}</span>
+              </div>
             </div>
-            <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'IN_PROCESS' ? null : 'IN_PROCESS')} className={`bg-[#FDF2C8] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'IN_PROCESS' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
-              <span className="font-bold text-xl text-black uppercase z-10 w-28 md:w-auto leading-tight md:leading-normal">In Progress</span>
-              <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{inProgressCount}</span>
-            </div>
-            <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'PENDING_RESPONSE' ? null : 'PENDING_RESPONSE')} className={`bg-[#EBDDD0] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'PENDING_RESPONSE' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
-              <span className="font-bold text-xl text-black uppercase z-10">Pending</span>
-              <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{pendingCount}</span>
-            </div>
-            <div onClick={() => setActiveStatusFilter(activeStatusFilter === 'RESOLVED' ? null : 'RESOLVED')} className={`bg-[#D1F0D4] rounded-2xl p-6 h-40 relative overflow-hidden flex flex-col justify-between shadow-sm cursor-pointer transition-all ${activeStatusFilter === 'RESOLVED' ? 'ring-4 ring-black scale-[1.02]' : 'hover:scale-105'}`}>
-              <span className="font-bold text-xl text-black uppercase z-10">Resolved</span>
-              <span className="absolute top-1/2 -translate-y-1/2 right-6 text-[9rem] font-bold text-black/10 leading-none select-none z-0 tracking-tighter">{resolvedCount}</span>
-            </div>
-          </div>
+          )}
 
           <div className="flex-1 overflow-x-auto overflow-y-visible md:overflow-auto custom-scrollbar pb-10">
             <table className="w-full text-left border-collapse min-w-[800px]">
@@ -376,14 +381,14 @@ export default function AdminCaseQueuePage() {
                   if (c.rawStatus === 'PENDING_RESPONSE') statusBg = 'bg-[#EBDDD0]';
                   if (c.rawStatus === 'RESOLVED') statusBg = 'bg-[#D1F0D4]';
 
-                  const isLockedForHandler = currentUserProfile?.role === 'HANDLER' && c.assignedId !== currentUserProfile.id;
+                  const isLockedForHandler = currentUserProfile?.role === 'HANDLER' && c.assignedId && c.assignedId !== currentUserProfile.id;
 
                   return (
                     <tr 
                       key={c.id} 
                       onClick={() => {
                         if (isLockedForHandler) {
-                          showToast("This case is in your department queue, but you cannot open the details because it has not been assigned to you by an Admin.");
+                          showToast("This case is already assigned to another handler.");
                           return;
                         }
                         handleCaseSelect(c);
@@ -454,124 +459,143 @@ export default function AdminCaseQueuePage() {
               <h2 className="font-black text-black uppercase text-sm tracking-wide mb-6">Case Activity</h2>
               
               <div className="relative border-l-2 border-gray-300 ml-3 md:ml-4 flex flex-col pb-4">
-                                <div className="relative pl-6 pb-10">
-                    <div className={`absolute -left-[11px] top-1 w-5 h-5 ${getCategoryStyle(selectedCase.rawCategory).split(' ')[0]} rounded-full border-[3px] border-white shadow-sm`}></div>
-                  <p className="font-bold text-black text-sm">
-                    CASE OPENED - Routed to {selectedCase.category}
-                    {selectedCase.matched_keyword ? ` (“Keyword match: ${selectedCase.matched_keyword.charAt(0).toUpperCase() + selectedCase.matched_keyword.slice(1)}”)` : ''}
-                  </p>
-                  <p className="text-gray-500 text-[11px] mt-1">{new Date(selectedCase.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                    
-                    {selectedCase.description && (
-                    <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.description}</p>
-                    </div>
-                  )}
+                {(() => {
+                  const latestMessageTime = comments.length > 0 ? new Date(comments[comments.length - 1].created_at).getTime() : new Date(selectedCase.created_at).getTime() + 1;
+                  const timelineItems = [
+                    { type: 'opened', timestamp: new Date(selectedCase.created_at).getTime(), data: null },
+                    ...activities.filter(a => !a.action_text.startsWith('CASE OPENED')).map(a => ({ type: 'activity', timestamp: new Date(a.created_at).getTime(), data: a })),
+                    { type: 'messages_box', timestamp: latestMessageTime, data: null }
+                  ];
 
-                  {selectedCase.attachments && selectedCase.attachments.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-bold text-gray-600 uppercase mb-2">Supporting Documents</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCase.attachments.map((file: any) => (
-                          <a key={file.id} href={file.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-xs font-medium text-gray-800 transition-colors">
-                            📄 {file.file_name || 'Document'}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  timelineItems.sort((a, b) => b.timestamp - a.timestamp);
 
-                {activities.filter(a => !a.action_text.startsWith('CASE OPENED')).map(act => {
-                  const getActivityColor = (text: string) => {
-                    const lower = text.toLowerCase();
-                    if (lower.includes('status changed')) return 'bg-blue-400';
-                    if (lower.includes('marked as')) return 'bg-orange-400';
-                    if (lower.includes('category changed')) return 'bg-purple-400';
-                    if (lower.includes('assigned to') || lower.includes('handler unassigned')) return 'bg-emerald-400';
-                    return 'bg-gray-300';
-                  };
+                  return timelineItems.map((item, idx) => {
+                    if (item.type === 'opened') {
+                      return (
+                        <div key="opened" className="relative pl-6 pb-10">
+                          <div className={`absolute -left-[11px] top-1 w-5 h-5 ${getCategoryStyle(selectedCase.rawCategory).split(' ')[0]} rounded-full border-[3px] border-white shadow-sm`}></div>
+                          <p className="font-bold text-black text-sm">
+                            CASE OPENED - Routed to {selectedCase.category}
+                            {selectedCase.matched_keyword ? ` (“Keyword match: ${selectedCase.matched_keyword.charAt(0).toUpperCase() + selectedCase.matched_keyword.slice(1)}”)` : ''}
+                          </p>
+                          <p className="text-gray-500 text-[11px] mt-1">{new Date(selectedCase.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                            
+                          {selectedCase.description && (
+                            <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.description}</p>
+                            </div>
+                          )}
 
-                  const renderActionText = (text: string) => {
-                    if (text.includes('HIGH Priority')) {
-                      const parts = text.split('HIGH Priority');
-                      return <>{parts[0]}<span className="text-red-600 font-black uppercase tracking-wide">HIGH Priority</span>{parts[1]}</>;
-                    }
-                    if (text.includes('MEDIUM Priority')) {
-                      const parts = text.split('MEDIUM Priority');
-                      return <>{parts[0]}<span className="text-orange-500 font-black uppercase tracking-wide">MEDIUM Priority</span>{parts[1]}</>;
-                    }
-                    if (text.includes('LOW Priority')) {
-                      const parts = text.split('LOW Priority');
-                      return <>{parts[0]}<span className="text-emerald-500 font-black uppercase tracking-wide">LOW Priority</span>{parts[1]}</>;
-                    }
-                    return <>{text}</>;
-                  };
+                          {selectedCase.attachments && selectedCase.attachments.length > 0 && (
+                            <div className="mt-4">
+                              <p className="text-xs font-bold text-gray-600 uppercase mb-2">Supporting Documents</p>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedCase.attachments.map((file: any) => (
+                                  <a key={file.id} href={file.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-xs font-medium text-gray-800 transition-colors">
+                                    📄 {file.file_name || 'Document'}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else if (item.type === 'activity') {
+                      const act = item.data;
+                      const getActivityColor = (text: string) => {
+                        const lower = text.toLowerCase();
+                        if (lower.includes('status changed')) return 'bg-blue-400';
+                        if (lower.includes('marked as')) return 'bg-orange-400';
+                        if (lower.includes('category changed')) return 'bg-purple-400';
+                        if (lower.includes('assigned to') || lower.includes('handler unassigned')) return 'bg-emerald-400';
+                        return 'bg-gray-300';
+                      };
 
-                  return (
-                    <div key={act.id} className="relative pl-6 pb-10">
-                      <div className={`absolute -left-[9px] top-1 w-4 h-4 ${getActivityColor(act.action_text)} rounded-full border-[3px] border-white shadow-sm`}></div>
-                      <p className="font-bold text-black text-sm">{renderActionText(act.action_text)}</p>
-                      <p className="text-gray-500 text-[11px] mt-1">{new Date(act.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                  );
-                })}
-
-                <div className="relative pl-6 flex flex-col">
-                  <h2 className="font-black text-black uppercase text-sm tracking-wide mb-4 mt-2">Messages</h2>
-                  
-                  <div className="flex flex-col gap-6 relative overflow-y-auto max-h-[400px] custom-scrollbar pr-4 py-2">
-                    {comments.map(c => {
-                      const isMe = c.user_id === currentUserProfile?.id;
-                      let authorName = '';
-                      if (isMe) {
-                        authorName = 'YOU';
-                      } else {
-                        const role = c.users.role || '';
-                        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-                          authorName = `${c.users.first_name} ${c.users.last_name} > MapuOne Admin`;
-                        } else if (role === 'HANDLER') {
-                          authorName = `${c.users.first_name} ${c.users.last_name} > ${c.users.department || 'Handler'}`;
-                        } else {
-                          authorName = `${c.users.first_name} ${c.users.last_name}`;
+                      const renderActionText = (text: string) => {
+                        if (text.includes('HIGH Priority')) {
+                          const parts = text.split('HIGH Priority');
+                          return <>{parts[0]}<span className="text-red-600 font-black uppercase tracking-wide">HIGH Priority</span>{parts[1]}</>;
                         }
-                      }
+                        if (text.includes('MEDIUM Priority')) {
+                          const parts = text.split('MEDIUM Priority');
+                          return <>{parts[0]}<span className="text-orange-500 font-black uppercase tracking-wide">MEDIUM Priority</span>{parts[1]}</>;
+                        }
+                        if (text.includes('LOW Priority')) {
+                          const parts = text.split('LOW Priority');
+                          return <>{parts[0]}<span className="text-emerald-500 font-black uppercase tracking-wide">LOW Priority</span>{parts[1]}</>;
+                        }
+                        return <>{text}</>;
+                      };
 
                       return (
-                        <div key={c.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`${isMe ? 'bg-white' : 'bg-[#F8F6F9]'} rounded-2xl p-4 md:p-5 shadow-sm border border-gray-200 max-w-[90%] md:max-w-[80%]`}>
-                            <div className={`flex justify-between items-center mb-2 gap-4 ${isMe ? 'flex-row-reverse' : ''}`}>
-                              <div className="flex items-center gap-2">
-                                <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
-                                <span className="font-black text-black text-xs md:text-sm">{authorName.toUpperCase()}</span>
-                              </div>
-                              <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">
-                                {new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                        <div key={act.id} className="relative pl-6 pb-10">
+                          <div className={`absolute -left-[9px] top-1 w-4 h-4 ${getActivityColor(act.action_text)} rounded-full border-[3px] border-white shadow-sm`}></div>
+                          <p className="font-bold text-black text-sm">{renderActionText(act.action_text)}</p>
+                          <p className="text-gray-500 text-[11px] mt-1">{new Date(act.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div key="messages_box" className="relative pl-6 flex flex-col pb-10">
+                          <div className="absolute -left-[9px] top-2 w-4 h-4 bg-gray-800 rounded-full border-[3px] border-white shadow-sm"></div>
+                          <h2 className="font-black text-black uppercase text-sm tracking-wide mb-4 mt-2">Messages</h2>
+                          
+                          <div className="flex flex-col gap-6 relative overflow-y-auto max-h-[400px] custom-scrollbar pr-4 py-2">
+                            {comments.map(c => {
+                              const isMe = c.user_id === currentUserProfile?.id;
+                              let authorName = '';
+                              if (isMe) {
+                                authorName = 'YOU';
+                              } else {
+                                const role = c.users.role || '';
+                                if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+                                  authorName = `${c.users.first_name} ${c.users.last_name} > MapuOne Admin`;
+                                } else if (role === 'HANDLER') {
+                                  authorName = `${c.users.first_name} ${c.users.last_name} > ${c.users.department || 'Handler'}`;
+                                } else {
+                                  authorName = `${c.users.first_name} ${c.users.last_name}`;
+                                }
+                              }
+
+                              return (
+                                <div key={c.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`${isMe ? 'bg-white' : 'bg-[#F8F6F9]'} rounded-2xl p-4 md:p-5 shadow-sm border border-gray-200 max-w-[90%] md:max-w-[80%]`}>
+                                    <div className={`flex justify-between items-center mb-2 gap-4 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                      <div className="flex items-center gap-2">
+                                        <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
+                                        <span className="font-black text-black text-xs md:text-sm">{authorName.toUpperCase()}</span>
+                                      </div>
+                                      <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">
+                                        {new Date(c.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                    <p className={`text-gray-800 text-sm leading-relaxed ${isMe ? 'mr-7 md:mr-8 text-right' : 'ml-7 md:ml-8'}`}>{c.message}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          <div className="mt-8 ml-4 md:ml-8">
+                            <label className="block text-black text-xs font-bold mb-2">Reply to this case</label>
+                            <input 
+                              type="text" 
+                              value={newComment}
+                              onChange={e => setNewComment(e.target.value)}
+                              placeholder="Type a message..." 
+                              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary mb-4 shadow-sm"
+                            />
+                            <div className="flex justify-end">
+                              <button onClick={handleSendComment} className="bg-[#E50000] hover:bg-red-700 text-white font-bold py-2.5 px-8 rounded-lg text-sm uppercase tracking-wide shadow-sm">
+                                Send
+                              </button>
                             </div>
-                            <p className={`text-gray-800 text-sm leading-relaxed ${isMe ? 'mr-7 md:mr-8 text-right' : 'ml-7 md:ml-8'}`}>{c.message}</p>
                           </div>
                         </div>
                       );
-                    })}
-                  </div>
-                  
-                  <div className="mt-8 ml-4 md:ml-8">
-                    <label className="block text-black text-xs font-bold mb-2">Reply to this case</label>
-                    <input 
-                      type="text" 
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      placeholder="Type a message..." 
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary mb-4 shadow-sm"
-                    />
-                    <div className="flex justify-end">
-                      <button onClick={handleSendComment} className="bg-[#E50000] hover:bg-red-700 text-white font-bold py-2.5 px-8 rounded-lg text-sm uppercase tracking-wide shadow-sm">
-                        Send
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    }
+                  });
+                })()}
               </div>
             </div>
 
@@ -631,6 +655,7 @@ export default function AdminCaseQueuePage() {
                               // Check both raw and formatted just in case
                               if (!cats.some((c: string) => c.replace('_', ' ') === opt.toUpperCase().replace('_', ' '))) {
                                 setAssigned('UNASSIGNED');
+                                setStatus('OPEN');
                               }
                             }
                           }
@@ -651,24 +676,27 @@ export default function AdminCaseQueuePage() {
                 <label className="text-black text-xs font-black uppercase tracking-wide">Assigned To</label>
                 <div className="relative w-full z-20">
                   <button 
-                    disabled={currentUserProfile?.role === 'HANDLER' || selectedCase.rawStatus === 'RESOLVED'}
+                    disabled={selectedCase.rawStatus === 'RESOLVED'}
                     onClick={() => setActiveDropdown(activeDropdown === 'assigned' ? null : 'assigned')} 
-                    className={`w-full flex items-center justify-between px-4 py-3 bg-[#F8F9FA] rounded-lg shadow-sm border border-gray-200 text-sm font-bold text-gray-800 text-left ${currentUserProfile?.role === 'HANDLER' || selectedCase.rawStatus === 'RESOLVED' ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    className={`w-full flex items-center justify-between px-4 py-3 bg-[#F8F9FA] rounded-lg shadow-sm border border-gray-200 text-sm font-bold text-gray-800 text-left ${selectedCase.rawStatus === 'RESOLVED' ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {handlers.find(h => h.id === assigned) ? `${handlers.find(h => h.id === assigned).first_name} ${handlers.find(h => h.id === assigned).last_name}` : 'UNASSIGNED'}
-                    {(currentUserProfile?.role !== 'HANDLER' && selectedCase.rawStatus !== 'RESOLVED') && <span className="text-gray-400 text-[10px]">▶</span>}
+                    {(selectedCase.rawStatus !== 'RESOLVED') && <span className="text-gray-400 text-[10px]">▶</span>}
                   </button>
                   {activeDropdown === 'assigned' && (
                     <div className="absolute top-full left-0 mt-2 w-full bg-[#F8F9FA] rounded-lg shadow-xl border border-gray-200 z-50 flex flex-col max-h-48 overflow-y-auto">
-                      <button onClick={() => { setAssigned('UNASSIGNED'); setActiveDropdown(null); }} className="px-4 py-3 text-sm font-bold text-left hover:bg-gray-200">UNASSIGNED</button>
+                      <button onClick={() => { setAssigned('UNASSIGNED'); setStatus('OPEN'); setActiveDropdown(null); }} className="px-4 py-3 text-sm font-bold text-left hover:bg-gray-200">UNASSIGNED</button>
                       {handlers.filter(h => {
+                        if (currentUserProfile?.role === 'HANDLER') {
+                          return h.id === currentUserProfile.id;
+                        }
                         if (h.role === 'ADMIN') return true;
                         if (!h.handled_categories) return false;
                         const cats = h.handled_categories.split(',').map((c: string) => c.trim().toUpperCase());
                         const targetCategory = category ? category.trim().toUpperCase() : '';
                         return cats.some((c: string) => c.replace('_', ' ') === targetCategory.replace('_', ' '));
                       }).map((h) => (
-                        <button key={h.id} onClick={() => { setAssigned(h.id); setActiveDropdown(null); }} className="px-4 py-3 text-sm font-bold text-left hover:bg-gray-200">{h.first_name} {h.last_name} ({h.role})</button>
+                        <button key={h.id} onClick={() => { setAssigned(h.id); setStatus('IN_PROCESS'); setActiveDropdown(null); }} className="px-4 py-3 text-sm font-bold text-left hover:bg-gray-200">{h.first_name} {h.last_name} ({h.role})</button>
                       ))}
                     </div>
                   )}
@@ -766,9 +794,11 @@ export default function AdminCaseQueuePage() {
             <button onClick={() => setConfirmSaveModalOpen(false)} className="px-5 py-2.5 bg-[#D4D4D4] hover:bg-gray-400 text-black rounded-lg font-bold text-sm transition-colors uppercase">Cancel</button>
             <button onClick={async () => {
               const updates: any = { status };
-              if (currentUserProfile?.role === 'ADMIN') {
-                updates.priority = priority;
-                updates.category = category;
+              if (currentUserProfile?.role === 'ADMIN' || currentUserProfile?.role === 'HANDLER') {
+                if (currentUserProfile?.role === 'ADMIN') {
+                  updates.priority = priority;
+                  updates.category = category;
+                }
                 updates.assigned_handler_id = assigned === 'UNASSIGNED' ? null : assigned;
               }
               const { error } = await supabase.from('complaints').update(updates).eq('id', selectedCase.id);

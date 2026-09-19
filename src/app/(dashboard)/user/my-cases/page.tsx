@@ -97,7 +97,7 @@ export default function MyCasesPage() {
       .from('complaints')
       .select('*, complaint_attachments(*)')
       .eq('complainant_id', session.user.id)
-      .order('created_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (data) {
       const formatted = data.map(d => ({
@@ -207,6 +207,7 @@ export default function MyCasesPage() {
     let statusBg = 'bg-gray-200';
     if (item.status === 'OPEN') statusBg = 'bg-[#FFBFC4]';
     if (item.status === 'IN PROCESS') statusBg = 'bg-[#FDF2C8]';
+    if (item.status === 'PENDING RESPONSE') statusBg = 'bg-[#EBDDD0]';
     if (item.status === 'RESOLVED') statusBg = 'bg-[#D1F0D4]';
 
     return (
@@ -350,134 +351,152 @@ export default function MyCasesPage() {
               
               <div className="relative border-l-2 border-gray-300 ml-3 md:ml-4 flex flex-col pb-4">
                 
-                <div className="relative pl-6 pb-6">
-                  <div className={`absolute -left-[11px] top-1 w-5 h-5 ${getCategoryStyle(selectedCase.category).split(' ')[0]} rounded-full border-[3px] border-white shadow-sm`}></div>
-                  <p className="font-bold text-black text-sm">
-                    CASE OPENED - Routed to {selectedCase.category}
-                    {selectedCase.matched_keyword ? ` (“Keyword match: ${selectedCase.matched_keyword.charAt(0).toUpperCase() + selectedCase.matched_keyword.slice(1)}”)` : ''}
-                  </p>
-                  <p className="text-gray-500 text-[11px] mt-1">{new Date(selectedCase.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                  
-                  {selectedCase.description && (
-                    <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.description}</p>
-                    </div>
-                  )}
+                {(() => {
+                  const latestMessageTime = comments.length > 0 ? new Date(comments[comments.length - 1].created_at).getTime() : new Date(selectedCase.created_at).getTime() + 1;
+                  const timelineItems = [
+                    { type: 'opened', timestamp: new Date(selectedCase.created_at).getTime(), data: null },
+                    ...activities.filter(a => !a.action_text.startsWith('CASE OPENED')).map(a => ({ type: 'activity', timestamp: new Date(a.created_at).getTime(), data: a })),
+                    { type: 'messages_box', timestamp: latestMessageTime, data: null }
+                  ];
 
-                  {selectedCase.attachments && selectedCase.attachments.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-bold text-gray-600 uppercase mb-2">Supporting Documents</p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedCase.attachments.map((file: any) => (
-                          <a key={file.id} href={file.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-xs font-medium text-gray-800 transition-colors">
-                            📄 {file.file_name || 'Document'}
-                          </a>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  timelineItems.sort((a, b) => b.timestamp - a.timestamp);
 
-                {activities.filter((a) => !a.action_text.startsWith('CASE OPENED')).map((act) => {
-                  const getActivityColor = (text: string) => {
-                    const lower = text.toLowerCase();
-                    if (lower.includes('status changed')) return 'bg-blue-400';
-                    if (lower.includes('marked as')) return 'bg-orange-400';
-                    if (lower.includes('category changed')) return 'bg-purple-400';
-                    if (lower.includes('assigned to') || lower.includes('handler unassigned')) return 'bg-emerald-400';
-                    return 'bg-gray-300';
-                  };
+                  return timelineItems.map((item, idx) => {
+                    if (item.type === 'opened') {
+                      return (
+                        <div key="opened" className="relative pl-6 pb-6">
+                          <div className={`absolute -left-[11px] top-1 w-5 h-5 ${getCategoryStyle(selectedCase.category).split(' ')[0]} rounded-full border-[3px] border-white shadow-sm`}></div>
+                          <p className="font-bold text-black text-sm">
+                            CASE OPENED - Routed to {selectedCase.category}
+                            {selectedCase.matched_keyword ? ` (“Keyword match: ${selectedCase.matched_keyword.charAt(0).toUpperCase() + selectedCase.matched_keyword.slice(1)}”)` : ''}
+                          </p>
+                          <p className="text-gray-500 text-[11px] mt-1">{new Date(selectedCase.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                          
+                          {selectedCase.description && (
+                            <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                              <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCase.description}</p>
+                            </div>
+                          )}
 
-                  const renderActionText = (text: string) => {
-                    if (text.includes('HIGH Priority')) {
-                      const parts = text.split('HIGH Priority');
-                      return <>{parts[0]}<span className="text-red-600 font-black uppercase tracking-wide">HIGH Priority</span>{parts[1]}</>;
-                    }
-                    if (text.includes('MEDIUM Priority')) {
-                      const parts = text.split('MEDIUM Priority');
-                      return <>{parts[0]}<span className="text-orange-500 font-black uppercase tracking-wide">MEDIUM Priority</span>{parts[1]}</>;
-                    }
-                    if (text.includes('LOW Priority')) {
-                      const parts = text.split('LOW Priority');
-                      return <>{parts[0]}<span className="text-emerald-500 font-black uppercase tracking-wide">LOW Priority</span>{parts[1]}</>;
-                    }
-                    return <>{text}</>;
-                  };
+                          {selectedCase.attachments && selectedCase.attachments.length > 0 && (
+                            <div className="mt-4">
+                              <p className="text-xs font-bold text-gray-600 uppercase mb-2">Supporting Documents</p>
+                              <div className="flex flex-wrap gap-2">
+                                {selectedCase.attachments.map((file: any) => (
+                                  <a key={file.id} href={file.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md text-xs font-medium text-gray-800 transition-colors">
+                                    📄 {file.file_name || 'Document'}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    } else if (item.type === 'activity') {
+                      const act = item.data;
+                      const getActivityColor = (text: string) => {
+                        const lower = text.toLowerCase();
+                        if (lower.includes('status changed')) return 'bg-blue-400';
+                        if (lower.includes('marked as')) return 'bg-orange-400';
+                        if (lower.includes('category changed')) return 'bg-purple-400';
+                        if (lower.includes('assigned to') || lower.includes('handler unassigned')) return 'bg-emerald-400';
+                        return 'bg-gray-300';
+                      };
 
-                  return (
-                    <div key={act.id} className="relative pl-6 pb-10">
-                      <div className={`absolute -left-[9px] top-1 w-4 h-4 ${getActivityColor(act.action_text)} rounded-full border-[3px] border-white shadow-sm`}></div>
-                      <p className="font-bold text-black text-sm">{renderActionText(act.action_text)}</p>
-                      <p className="text-gray-500 text-[11px] mt-1">{new Date(act.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
-                  );
-                })}
-
-                <div className="relative pl-6 flex flex-col">
-                  <h2 className="font-black text-black uppercase text-sm tracking-wide mb-4 mt-2">Messages</h2>
-                  
-                  <div className="flex flex-col gap-6 relative overflow-y-auto max-h-[400px] custom-scrollbar pr-4 py-2">
-                    {comments.map((comment) => {
-                      const isMe = currentUser?.id === comment.user_id;
-                      let authorName = '';
-                      if (isMe) {
-                        authorName = 'YOU';
-                      } else {
-                        const role = comment.users.role || '';
-                        if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
-                          authorName = `${comment.users.first_name} ${comment.users.last_name} > MapuOne Admin`;
-                        } else if (role === 'HANDLER') {
-                          authorName = `${comment.users.first_name} ${comment.users.last_name} > ${comment.users.department || 'Handler'}`;
-                        } else {
-                          authorName = `${comment.users.first_name} ${comment.users.last_name}`;
+                      const renderActionText = (text: string) => {
+                        if (text.includes('HIGH Priority')) {
+                          const parts = text.split('HIGH Priority');
+                          return <>{parts[0]}<span className="text-red-600 font-black uppercase tracking-wide">HIGH Priority</span>{parts[1]}</>;
                         }
-                      }
+                        if (text.includes('MEDIUM Priority')) {
+                          const parts = text.split('MEDIUM Priority');
+                          return <>{parts[0]}<span className="text-orange-500 font-black uppercase tracking-wide">MEDIUM Priority</span>{parts[1]}</>;
+                        }
+                        if (text.includes('LOW Priority')) {
+                          const parts = text.split('LOW Priority');
+                          return <>{parts[0]}<span className="text-emerald-500 font-black uppercase tracking-wide">LOW Priority</span>{parts[1]}</>;
+                        }
+                        return <>{text}</>;
+                      };
 
                       return (
-                        <div key={comment.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`${isMe ? 'bg-white' : 'bg-[#F8F6F9]'} rounded-2xl p-4 md:p-5 shadow-sm border border-gray-200 max-w-[90%] md:max-w-[80%]`}>
-                            <div className={`flex justify-between items-center mb-2 gap-4 ${isMe ? 'flex-row-reverse' : ''}`}>
-                              <div className="flex items-center gap-2">
-                                <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
-                                <span className="font-black text-black text-xs md:text-sm">{authorName.toUpperCase()}</span>
-                              </div>
-                              <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">
-                                {new Date(comment.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                        <div key={act.id} className="relative pl-6 pb-10">
+                          <div className={`absolute -left-[9px] top-1 w-4 h-4 ${getActivityColor(act.action_text)} rounded-full border-[3px] border-white shadow-sm`}></div>
+                          <p className="font-bold text-black text-sm">{renderActionText(act.action_text)}</p>
+                          <p className="text-gray-500 text-[11px] mt-1">{new Date(act.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div key="messages_box" className="relative pl-6 flex flex-col pb-10">
+                          <div className="absolute -left-[9px] top-2 w-4 h-4 bg-gray-800 rounded-full border-[3px] border-white shadow-sm"></div>
+                          <h2 className="font-black text-black uppercase text-sm tracking-wide mb-4 mt-2">Messages</h2>
+                          
+                          <div className="flex flex-col gap-6 relative overflow-y-auto max-h-[400px] custom-scrollbar pr-4 py-2">
+                            {comments.map((comment) => {
+                              const isMe = currentUser?.id === comment.user_id;
+                              let authorName = '';
+                              if (isMe) {
+                                authorName = 'YOU';
+                              } else {
+                                const role = comment.users.role || '';
+                                if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+                                  authorName = `${comment.users.first_name} ${comment.users.last_name} > MapuOne Admin`;
+                                } else if (role === 'HANDLER') {
+                                  authorName = `${comment.users.first_name} ${comment.users.last_name} > ${comment.users.department || 'Handler'}`;
+                                } else {
+                                  authorName = `${comment.users.first_name} ${comment.users.last_name}`;
+                                }
+                              }
+
+                              return (
+                                <div key={comment.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                  <div className={`${isMe ? 'bg-white' : 'bg-[#F8F6F9]'} rounded-2xl p-4 md:p-5 shadow-sm border border-gray-200 max-w-[90%] md:max-w-[80%]`}>
+                                    <div className={`flex justify-between items-center mb-2 gap-4 ${isMe ? 'flex-row-reverse' : ''}`}>
+                                      <div className="flex items-center gap-2">
+                                        <UserCircle className="w-5 h-5 md:w-6 md:h-6 text-black" />
+                                        <span className="font-black text-black text-xs md:text-sm">{authorName.toUpperCase()}</span>
+                                      </div>
+                                      <span className="text-gray-500 text-[10px] md:text-[11px] whitespace-nowrap">
+                                        {new Date(comment.created_at).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                    <p className={`text-gray-800 text-sm leading-relaxed ${isMe ? 'mr-7 md:mr-8 text-right' : 'ml-7 md:ml-8'}`}>
+                                      {comment.message}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            {comments.length === 0 && (
+                              <div className="text-gray-400 text-xs text-center py-4">No messages yet.</div>
+                            )}
+                          </div>
+                          
+                          <div className="mt-8 ml-4 md:ml-8">
+                            <label className="block text-black text-xs font-bold mb-2">Reply to this case</label>
+                            <input 
+                              type="text" 
+                              value={newComment}
+                              onChange={e => setNewComment(e.target.value)}
+                              placeholder="Type a message..." 
+                              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent mb-4"
+                            />
+                            <div className="flex justify-end">
+                              <button 
+                                onClick={handleSendComment}
+                                disabled={isSending || !newComment.trim()}
+                                className="bg-[#E50000] hover:bg-red-700 disabled:opacity-50 text-white font-bold py-2.5 px-8 rounded-lg text-sm transition-colors uppercase tracking-wide"
+                              >
+                                {isSending ? 'Sending...' : 'Send'}
+                              </button>
                             </div>
-                            <p className={`text-gray-800 text-sm leading-relaxed ${isMe ? 'mr-7 md:mr-8 text-right' : 'ml-7 md:ml-8'}`}>
-                              {comment.message}
-                            </p>
                           </div>
                         </div>
-                      )
-                    })}
-                    {comments.length === 0 && (
-                      <div className="text-gray-400 text-xs text-center py-4">No messages yet.</div>
-                    )}
-                  </div>
-                  
-                  <div className="mt-8 ml-4 md:ml-8">
-                    <label className="block text-black text-xs font-bold mb-2">Reply to this case</label>
-                    <input 
-                      type="text" 
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      placeholder="Type a message..." 
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent mb-4"
-                    />
-                    <div className="flex justify-end">
-                      <button 
-                        onClick={handleSendComment}
-                        disabled={isSending || !newComment.trim()}
-                        className="bg-[#E50000] hover:bg-red-700 disabled:opacity-50 text-white font-bold py-2.5 px-8 rounded-lg text-sm transition-colors uppercase tracking-wide"
-                      >
-                        {isSending ? 'Sending...' : 'Send'}
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
+                      );
+                    }
+                  });
+                })()}
               </div>
             </div>
           </div>

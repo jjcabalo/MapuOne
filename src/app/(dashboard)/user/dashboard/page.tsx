@@ -16,6 +16,7 @@ interface Complaint {
 
 export default function UserDashboardPage() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [userName, setUserName] = useState<string>('User');
   const [isLoading, setIsLoading] = useState(true);
 
   const getCategoryStyle = (cat: string) => {
@@ -29,21 +30,32 @@ export default function UserDashboardPage() {
   };
 
   useEffect(() => {
-    const fetchComplaints = async () => {
+    const fetchData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+
+      // Fetch user profile for given name
+      const { data: userData } = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (userData?.first_name) {
+        setUserName(userData.first_name);
+      }
 
       const { data } = await supabase
         .from('complaints')
         .select('*')
         .eq('complainant_id', session.user.id)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
       if (data) setComplaints(data);
       setIsLoading(false);
     };
 
-    fetchComplaints();
+    fetchData();
   }, []);
   
   const openCount = complaints.filter(c => c.status === 'OPEN').length;
@@ -56,7 +68,7 @@ export default function UserDashboardPage() {
       {/* Title & Stats (Fixed at top) */}
       <div className="flex-shrink-0">
         <h1 className="text-3xl md:text-4xl font-black text-black mb-8 uppercase tracking-wide">
-          Welcome Back, User
+          Welcome Back, {userName}
         </h1>
 
         {/* Stats Cards */}
@@ -99,6 +111,7 @@ export default function UserDashboardPage() {
               const bgStatusColor = 
                 complaint.status === 'OPEN' ? 'bg-[#FFBFC4]' : 
                 complaint.status === 'IN_PROCESS' ? 'bg-[#FDF2C8]' : 
+                complaint.status === 'PENDING_RESPONSE' ? 'bg-[#EBDDD0]' :
                 'bg-[#D1F0D4]';
 
               const formattedDate = new Date(complaint.created_at).toLocaleDateString('en-US', {
