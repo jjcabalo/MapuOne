@@ -165,9 +165,9 @@ export default function SettingsPage() {
       ? (userModalCategories.length > 0 ? userModalCategories[0] : null) 
       : null;
 
-    const finalDepartment = ['HANDLER', 'ADMIN'].includes(userModalData.role) && finalCategories
-      ? finalCategories.replace('_', ' ')
-      : userModalData.department;
+    const finalDepartment = ['HANDLER', 'ADMIN'].includes(userModalData.role)
+      ? (finalCategories ? finalCategories.replace('_', ' ') : userModalData.department)
+      : null;
 
     const { error } = await supabase.from('users').update({
       role: userModalData.role,

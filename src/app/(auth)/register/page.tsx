@@ -9,6 +9,9 @@ import { Eye, EyeOff } from 'lucide-react';
 export default function RegisterPage() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [studentNumber, setStudentNumber] = useState('');
+  const [course, setCourse] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,17 +32,31 @@ export default function RegisterPage() {
     setIsLoading(true);
     
     try {
+      const nameParts = fullName.trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            student_number: studentNumber,
+            course: course
+          }
+        }
       });
 
       if (signUpError) throw signUpError;
 
       setIsPopupOpen(true);
     } catch (err: any) {
-      if (err.message === 'Database error saving new user') {
-        setError('This email is not authorized. Please use a valid, registered Mapúa email address.');
+      if (err.message && err.message.includes('Mapua email')) {
+        setError(err.message);
+      } else if (err.message === 'Database error saving new user' || err.message.includes('Only Mapua email addresses')) {
+        setError('Registration failed: Only Mapua email addresses (@mapua.edu.ph or @mymail.mapua.edu.ph) are allowed unless pre-authorized.');
       } else {
         setError(err.message || 'An error occurred during registration.');
       }
@@ -77,13 +94,37 @@ export default function RegisterPage() {
           
           {/* Error Message */}
           {error && (
-            <div className="w-full md:w-1/2 p-3 text-sm text-white bg-red-500 rounded-lg">
+            <div className="w-full md:w-3/4 p-3 text-sm text-white bg-red-500 rounded-lg">
               {error}
             </div>
           )}
 
-          {/* Row 1 - Email Address */}
-          <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
+          {/* Row 1 - Full Name & Student Number */}
+          <div className="flex flex-col md:flex-row gap-6 w-full md:w-3/4 md:pr-3">
+            <div className="flex-1 flex flex-col gap-1">
+              <label className="text-sm font-semibold text-black">Full Name</label>
+              <input 
+                type="text" 
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
+              />
+            </div>
+            <div className="flex-1 flex flex-col gap-1">
+              <label className="text-sm font-semibold text-black">Student Number</label>
+              <input 
+                type="text" 
+                value={studentNumber}
+                onChange={(e) => setStudentNumber(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
+              />
+            </div>
+          </div>
+
+          {/* Row 2 - Email & Course */}
+          <div className="flex flex-col md:flex-row gap-6 w-full md:w-3/4 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Mapua Email Address</label>
               <input 
@@ -94,10 +135,20 @@ export default function RegisterPage() {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
               />
             </div>
+            <div className="flex-1 flex flex-col gap-1">
+              <label className="text-sm font-semibold text-black">Course / Department</label>
+              <input 
+                type="text" 
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
+                required
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
+              />
+            </div>
           </div>
 
-          {/* Row 2 - Passwords */}
-          <div className="flex flex-col md:flex-row gap-6 w-full md:w-1/2 md:pr-3">
+          {/* Row 3 - Passwords */}
+          <div className="flex flex-col md:flex-row gap-6 w-full md:w-3/4 md:pr-3">
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Password</label>
               <div className="relative w-full">
