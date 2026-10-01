@@ -20,6 +20,14 @@ export default function MyProfilePage() {
   const [passwordError, setPasswordError] = useState('');
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
+  // Profile update states
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [idNumber, setIdNumber] = useState('');
+  const [courseDept, setCourseDept] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState('');
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -31,9 +39,51 @@ export default function MyProfilePage() {
       const { data } = await supabase.from('users').select('*').eq('id', session.user.id).single();
       if (data) {
         setProfile({ ...data, email: session.user.email });
+        setFirstName(data.first_name || '');
+        setLastName(data.last_name || '');
+        setIdNumber(data.id_number || '');
+        setCourseDept(data.role === 'STUDENT' ? (data.course || '') : (data.department || ''));
       }
     }
     setIsLoading(false);
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileMessage('');
+    setIsUpdatingProfile(true);
+
+    const updates: any = {
+      first_name: firstName,
+      last_name: lastName,
+      id_number: idNumber,
+    };
+
+    if (profile?.role === 'STUDENT') {
+      updates.course = courseDept;
+    } else {
+      updates.department = courseDept;
+    }
+
+    const { error } = await supabase.from('users').update(updates).eq('id', profile.id);
+    
+    // Also update auth user metadata
+    await supabase.auth.updateUser({
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        student_number: idNumber,
+        course: courseDept
+      }
+    });
+
+    if (error) {
+      setProfileMessage('Error updating profile: ' + error.message);
+    } else {
+      setProfileMessage('Profile updated successfully!');
+      fetchProfile();
+    }
+    setIsUpdatingProfile(false);
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -118,17 +168,35 @@ export default function MyProfilePage() {
             </div>
           </div>
 
-          {/* Form Fields - Disabled due to SSO */}
-          <div className="flex flex-col gap-6">
+          {/* Form Fields */}
+          <form onSubmit={handleUpdateProfile} className="flex flex-col gap-6">
+            {profileMessage && (
+              <div className={`w-full p-3 text-sm text-white rounded-lg ${profileMessage.includes('Error') ? 'bg-red-500' : 'bg-green-500'}`}>
+                {profileMessage}
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               
               <div className="flex flex-col gap-2">
-                <label className="text-black text-sm font-bold">Full Name</label>
+                <label className="text-black text-sm font-bold">First Name</label>
                 <input 
                   type="text" 
-                  value={`${profile?.first_name || ''} ${profile?.last_name || ''}`}
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50 shadow-sm cursor-not-allowed"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-black text-sm font-bold">Last Name</label>
+                <input 
+                  type="text" 
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                 />
               </div>
 
@@ -136,19 +204,9 @@ export default function MyProfilePage() {
                 <label className="text-black text-sm font-bold">Student / Staff ID</label>
                 <input 
                   type="text" 
-                  value={profile?.id_number || profile?.student_number || 'N/A'}
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50 shadow-sm cursor-not-allowed"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-black text-sm font-bold">Email Address</label>
-                <input 
-                  type="email" 
-                  value={profile?.email || ''}
-                  disabled
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50 shadow-sm cursor-not-allowed"
+                  value={idNumber}
+                  onChange={(e) => setIdNumber(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                 />
               </div>
 
@@ -158,14 +216,34 @@ export default function MyProfilePage() {
                 </label>
                 <input 
                   type="text" 
-                  value={profile?.role === 'STUDENT' ? (profile?.course || 'N/A') : (profile?.department || 'N/A')}
+                  value={courseDept}
+                  onChange={(e) => setCourseDept(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <label className="text-black text-sm font-bold">Email Address <span className="text-gray-400 font-normal ml-1">(Cannot be changed)</span></label>
+                <input 
+                  type="email" 
+                  value={profile?.email || ''}
                   disabled
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50 shadow-sm cursor-not-allowed"
+                  className="w-full md:w-[calc(50%-1rem)] px-4 py-3 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50 shadow-sm cursor-not-allowed"
                 />
               </div>
 
             </div>
-          </div>
+            
+            <div className="flex justify-end mt-2">
+              <button 
+                type="submit" 
+                disabled={isUpdatingProfile}
+                className="bg-primary hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-2.5 px-8 rounded-lg text-sm transition-colors uppercase tracking-wide"
+              >
+                {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Change Password Card */}

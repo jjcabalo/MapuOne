@@ -252,9 +252,13 @@ export default function RegisterPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
             </svg>
           </div>
-          <h2 className="text-2xl font-black text-black mb-3 uppercase tracking-wide">Check Your Inbox</h2>
+          <h2 className="text-2xl font-black text-black mb-3 uppercase tracking-wide">
+            {email.toLowerCase().includes('mapua.edu.ph') ? 'Account Successfully Registered' : 'Check Your Inbox'}
+          </h2>
           <p className="text-gray-600 text-sm leading-relaxed max-w-sm">
-            We have sent an activation link to your Mapúa email address. Please click the link inside the email to verify and activate your account.
+            {email.toLowerCase().includes('mapua.edu.ph') 
+              ? 'Your account has been verified. You can now log in directly.' 
+              : 'We have sent an activation link to your email address. Please click the link inside the email to verify and activate your account.'}
           </p>
         </div>
       </PopupDialog>

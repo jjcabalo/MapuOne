@@ -117,7 +117,7 @@ export default function AdminCaseQueuePage() {
 
     const { data, error } = await supabase.from('complaints').select(`
       *,
-      users!complainant_id(first_name, last_name),
+      users!complainant_id(first_name, last_name, email, id_number, course, department),
       complaint_attachments(*)
     `).order('created_at', { ascending: false });
 
@@ -166,6 +166,7 @@ export default function AdminCaseQueuePage() {
         created_at: d.created_at,
         updated_at: d.updated_at,
         ticket_number: d.ticket_number,
+        complainant: d.users,
         attachments: d.complaint_attachments || []
       }));
       
@@ -601,6 +602,26 @@ export default function AdminCaseQueuePage() {
 
             <div className="w-full lg:w-72 xl:w-80 flex-shrink-0 flex flex-col gap-5 pt-1 lg:border-l lg:border-gray-200 lg:pl-8">
               
+              {/* Reporter Info */}
+              <div className="flex flex-col gap-1.5 group relative">
+                <label className="text-black text-xs font-black uppercase tracking-wide">Reporter</label>
+                <div className="w-full flex items-center justify-between px-4 py-3 bg-[#F8F9FA] rounded-lg shadow-sm border border-gray-200 text-sm font-bold text-gray-800 text-left cursor-default">
+                  <div className="flex items-center gap-2">
+                    <UserCircle className="w-5 h-5 text-gray-500" />
+                    <span className="truncate">{selectedCase.complainant ? `${selectedCase.complainant.first_name} ${selectedCase.complainant.last_name}` : 'Unknown'}</span>
+                  </div>
+                </div>
+                {selectedCase.complainant && (
+                  <div className="absolute top-full left-0 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 z-50 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none group-hover:pointer-events-auto flex flex-col gap-2">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Contact Details</p>
+                    <p className="text-sm font-bold text-black">{selectedCase.complainant.first_name} {selectedCase.complainant.last_name}</p>
+                    <p className="text-xs text-gray-800"><span className="font-bold">ID:</span> {selectedCase.complainant.id_number || 'N/A'}</p>
+                    <p className="text-xs text-gray-800"><span className="font-bold">Course/Dept:</span> {selectedCase.complainant.course || selectedCase.complainant.department || 'N/A'}</p>
+                    <p className="text-xs text-blue-600 truncate">{selectedCase.complainant.email}</p>
+                  </div>
+                )}
+              </div>
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-black text-xs font-black uppercase tracking-wide">Priority</label>
                 <div className="relative w-full z-40">

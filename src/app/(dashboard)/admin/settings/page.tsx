@@ -41,6 +41,7 @@ export default function SettingsPage() {
   const [userModalData, setUserModalData] = useState<any | null>(null);
   const [userModalRoleOpen, setUserModalRoleOpen] = useState(false);
   const [userModalCategories, setUserModalCategories] = useState<string[]>([]);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const [modalKeywords, setModalKeywords] = useState<Keyword[]>([]);
   const [keywordInput, setKeywordInput] = useState('');
@@ -183,6 +184,31 @@ export default function SettingsPage() {
     
     setUserModalData(null);
     fetchData();
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userModalData) return;
+    if (userModalData.role === 'ADMIN') {
+      showToast("Cannot delete a System Admin account.");
+      return;
+    }
+    
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const executeDeleteUser = async () => {
+    if (!userModalData) return;
+    
+    const { error } = await supabase.rpc('delete_user_admin', { target_user_id: userModalData.id });
+    if (error) {
+      showToast("Error deleting user: " + error.message);
+      console.error(error);
+    } else {
+      showToast("User successfully deleted.");
+      setIsDeleteConfirmOpen(false);
+      setUserModalData(null);
+      fetchData();
+    }
   };
 
   const filteredUsers = users.filter(u => 
@@ -382,9 +408,12 @@ export default function SettingsPage() {
       </PopupDialog>
 
       <PopupDialog isOpen={userModalData !== null} hideHeader={true} maxWidth="max-w-xl" overflowVisible={true} footer={
-        <div className="w-full flex justify-end gap-4 px-4 pb-2">
-          <button onClick={() => setUserModalData(null)} className="px-6 py-3 bg-[#D4D4D4] text-black rounded-lg font-bold text-sm uppercase">Cancel</button>
-          <button onClick={saveUser} className="px-6 py-3 bg-[#E50000] text-white rounded-lg font-bold text-sm uppercase">Save Changes</button>
+        <div className="w-full flex justify-between gap-4 px-4 pb-2">
+          <button onClick={handleDeleteUser} className="px-6 py-3 bg-red-100 text-[#E50000] rounded-lg font-bold text-sm uppercase hover:bg-red-200 transition-colors">Delete User</button>
+          <div className="flex gap-4">
+            <button onClick={() => setUserModalData(null)} className="px-6 py-3 bg-[#D4D4D4] text-black rounded-lg font-bold text-sm uppercase hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={saveUser} className="px-6 py-3 bg-[#E50000] text-white rounded-lg font-bold text-sm uppercase hover:bg-red-700 transition-colors">Save Changes</button>
+          </div>
         </div>
       }>
         <div className="flex flex-col px-4 pt-2">
@@ -477,6 +506,30 @@ export default function SettingsPage() {
           </div>
         </div>
       </PopupDialog>
+
+      {/* Delete Confirmation Modal */}
+      <PopupDialog 
+        isOpen={isDeleteConfirmOpen} 
+        hideHeader={true} 
+        maxWidth="max-w-md" 
+        footer={
+          <div className="w-full flex justify-end gap-4 px-4 pb-2">
+            <button onClick={() => setIsDeleteConfirmOpen(false)} className="px-6 py-3 bg-[#D4D4D4] text-black rounded-lg font-bold text-sm uppercase hover:bg-gray-300 transition-colors">Cancel</button>
+            <button onClick={executeDeleteUser} className="px-6 py-3 bg-[#E50000] text-white rounded-lg font-bold text-sm uppercase hover:bg-red-700 transition-colors">Yes, Delete User</button>
+          </div>
+        }
+      >
+        <div className="flex flex-col items-center px-4 pt-4 pb-2 text-center">
+          <div className="w-16 h-16 bg-red-100 text-[#E50000] rounded-full flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-black mb-2">Delete User?</h2>
+          <p className="text-gray-600 text-sm">
+            Are you sure you want to permanently delete <strong>{userModalData?.name}</strong>? They will be removed from the system and can register again later.
+          </p>
+        </div>
+      </PopupDialog>
+
     </div>
   );
 }
