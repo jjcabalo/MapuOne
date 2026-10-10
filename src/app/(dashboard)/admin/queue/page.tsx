@@ -69,7 +69,7 @@ export default function AdminCaseQueuePage() {
   const [newComment, setNewComment] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10;
+  const rowsPerPage = 25;
 
   useEffect(() => {
     fetchData();
@@ -292,9 +292,7 @@ export default function AdminCaseQueuePage() {
     c.filedBy.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredCases = activeStatusFilter 
-    ? baseCases.filter(c => c.status === activeStatusFilter.replace('_', ' ')) 
-    : baseCases.filter(c => c.status !== 'RESOLVED');
+  const filteredCases = activeStatusFilter ? baseCases.filter(c => c.status === activeStatusFilter.replace('_', ' ')) : baseCases;
     
   const totalPages = Math.ceil(filteredCases.length / rowsPerPage);
   const paginatedCases = filteredCases.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -428,7 +426,31 @@ export default function AdminCaseQueuePage() {
               <div className="text-center py-20 text-gray-500 font-medium">No cases match your criteria.</div>
             )}
           </div>
-        </>
+        
+            {filteredCases.length > 0 && !isLoading && (
+              <div className="flex items-center justify-between px-4 py-4 border-t border-gray-200 mt-4 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-700">
+                  Showing <span className="font-bold">{(currentPage - 1) * rowsPerPage + 1}</span> to <span className="font-bold">{Math.min(currentPage * rowsPerPage, filteredCases.length)}</span> of <span className="font-bold">{filteredCases.length}</span> cases
+                </span>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar pb-10">
           <div className="bg-[#F8F6F9] border border-gray-200 rounded-2xl p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md mb-8 mt-2">
