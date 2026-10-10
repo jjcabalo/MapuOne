@@ -116,8 +116,13 @@ export default function RegisterPage() {
               <input 
                 type="text" 
                 value={studentNumber}
-                onChange={(e) => setStudentNumber(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  if (val.length <= 10) setStudentNumber(val);
+                }}
                 required
+                minLength={10}
+                maxLength={10}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
               />
             </div>
@@ -137,13 +142,34 @@ export default function RegisterPage() {
             </div>
             <div className="flex-1 flex flex-col gap-1">
               <label className="text-sm font-semibold text-black">Course / Department</label>
-              <input 
-                type="text" 
+              <select 
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
                 required
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black"
-              />
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary focus:border-transparent text-sm text-black bg-white"
+              >
+                <option value="" disabled>Select Department</option>
+                <optgroup label="Intramuros Campus">
+                  <option value="School of Architecture, Industrial Design, and the Built Environment">School of Architecture, Industrial Design, and the Built Environment</option>
+                  <option value="School of Chemical, Biological, and Materials Engineering and Sciences">School of Chemical, Biological, and Materials Engineering and Sciences</option>
+                  <option value="School of Civil, Environmental, and Geological Engineering">School of Civil, Environmental, and Geological Engineering</option>
+                  <option value="School of Electrical, Electronics, and Computer Engineering">School of Electrical, Electronics, and Computer Engineering</option>
+                  <option value="School of Industrial Engineering and Engineering Management">School of Industrial Engineering and Engineering Management</option>
+                  <option value="School of Mechanical, Manufacturing, and Energy Engineering">School of Mechanical, Manufacturing, and Energy Engineering</option>
+                  <option value="School of Foundational Studies and Education">School of Foundational Studies and Education</option>
+                  <option value="Department of Liberal Arts">Department of Liberal Arts</option>
+                  <option value="Department of Mathematics">Department of Mathematics</option>
+                  <option value="Department of Physical Education and Athletics">Department of Physical Education and Athletics</option>
+                  <option value="Department of Physics">Department of Physics</option>
+                </optgroup>
+                <optgroup label="Makati Campus">
+                  <option value="School of Information Technology">School of Information Technology</option>
+                  <option value="School of Multimedia and Digital Arts">School of Multimedia and Digital Arts</option>
+                  <option value="E.T. Yuchengco School of Business, in collaboration with Arizona State University">E.T. Yuchengco School of Business, in collaboration with Arizona State University</option>
+                  <option value="School of Health Sciences, in collaboration with Arizona State University">School of Health Sciences, in collaboration with Arizona State University</option>
+                  <option value="School of Nursing, in collaboration with Arizona State University">School of Nursing, in collaboration with Arizona State University</option>
+                </optgroup>
+              </select>
             </div>
           </div>
 

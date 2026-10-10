@@ -120,10 +120,25 @@ export default function SettingsPage() {
 
   const handleAddKeyword = () => {
     const word = keywordInput.trim();
-    if (word && !modalKeywords.find(k => k.word === word)) {
-      setModalKeywords([...modalKeywords, { word, priority: newKeywordPriority }]);
+    if (!word) return;
+
+    if (modalKeywords.find(k => k.word.toLowerCase() === word.toLowerCase())) {
       setKeywordInput('');
+      return;
     }
+
+    const existingInOtherCategory = categories.find(c => 
+      c.rawCategory !== categorySelect && 
+      c.keywords.find((k: Keyword) => k.word.toLowerCase() === word.toLowerCase())
+    );
+
+    if (existingInOtherCategory) {
+      showToast(`Keyword '${word}' already exists in ${existingInOtherCategory.name}`);
+      return;
+    }
+
+    setModalKeywords([...modalKeywords, { word, priority: newKeywordPriority }]);
+    setKeywordInput('');
   };
 
   const handleKeywordKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -137,12 +152,29 @@ export default function SettingsPage() {
     if (!categorySelect) return;
     
     let finalKeywords = [...modalKeywords];
-    if (keywordInput.trim() && !finalKeywords.find(k => k.word === keywordInput.trim())) {
-      finalKeywords.push({ word: keywordInput.trim(), priority: newKeywordPriority });
+    const word = keywordInput.trim();
+    if (word && !finalKeywords.find(k => k.word.toLowerCase() === word.toLowerCase())) {
+      finalKeywords.push({ word, priority: newKeywordPriority });
+    }
+
+    // Pre-validate uniqueness across other categories
+    for (const kw of finalKeywords) {
+      const existingInOther = categories.find(c => 
+        c.rawCategory !== categorySelect && 
+        c.keywords.find((k: Keyword) => k.word.toLowerCase() === kw.word.toLowerCase())
+      );
+      if (existingInOther) {
+        showToast(`Cannot save: Keyword '${kw.word}' already exists in ${existingInOther.name}`);
+        return;
+      }
     }
 
     // Clear existing for this category
-    await supabase.from('routing_keywords').delete().eq('category', categorySelect);
+    const { error: deleteError } = await supabase.from('routing_keywords').delete().eq('category', categorySelect);
+    if (deleteError) {
+      showToast("Error clearing old keywords: " + deleteError.message);
+      return;
+    }
     
     // Insert new
     if (finalKeywords.length > 0) {
@@ -151,7 +183,10 @@ export default function SettingsPage() {
         category: categorySelect,
         priority: k.priority
       }));
-      await supabase.from('routing_keywords').insert(inserts);
+      const { error: insertError } = await supabase.from('routing_keywords').insert(inserts);
+      if (insertError) {
+        showToast("Error saving keywords: " + insertError.message);
+      }
     }
     
     setCategoryModalData(null);

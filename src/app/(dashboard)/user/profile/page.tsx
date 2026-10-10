@@ -205,7 +205,12 @@ export default function MyProfilePage() {
                 <input 
                   type="text" 
                   value={idNumber}
-                  onChange={(e) => setIdNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    if (val.length <= 10) setIdNumber(val);
+                  }}
+                  minLength={10}
+                  maxLength={10}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
                 />
               </div>
@@ -214,12 +219,33 @@ export default function MyProfilePage() {
                 <label className="text-black text-sm font-bold">
                   {profile?.role === 'STUDENT' ? 'Course / Program' : 'Department'}
                 </label>
-                <input 
-                  type="text" 
+                <select 
                   value={courseDept}
                   onChange={(e) => setCourseDept(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-                />
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary shadow-sm bg-white"
+                >
+                  <option value="" disabled>Select Department</option>
+                  <optgroup label="Intramuros Campus">
+                    <option value="School of Architecture, Industrial Design, and the Built Environment">School of Architecture, Industrial Design, and the Built Environment</option>
+                    <option value="School of Chemical, Biological, and Materials Engineering and Sciences">School of Chemical, Biological, and Materials Engineering and Sciences</option>
+                    <option value="School of Civil, Environmental, and Geological Engineering">School of Civil, Environmental, and Geological Engineering</option>
+                    <option value="School of Electrical, Electronics, and Computer Engineering">School of Electrical, Electronics, and Computer Engineering</option>
+                    <option value="School of Industrial Engineering and Engineering Management">School of Industrial Engineering and Engineering Management</option>
+                    <option value="School of Mechanical, Manufacturing, and Energy Engineering">School of Mechanical, Manufacturing, and Energy Engineering</option>
+                    <option value="School of Foundational Studies and Education">School of Foundational Studies and Education</option>
+                    <option value="Department of Liberal Arts">Department of Liberal Arts</option>
+                    <option value="Department of Mathematics">Department of Mathematics</option>
+                    <option value="Department of Physical Education and Athletics">Department of Physical Education and Athletics</option>
+                    <option value="Department of Physics">Department of Physics</option>
+                  </optgroup>
+                  <optgroup label="Makati Campus">
+                    <option value="School of Information Technology">School of Information Technology</option>
+                    <option value="School of Multimedia and Digital Arts">School of Multimedia and Digital Arts</option>
+                    <option value="E.T. Yuchengco School of Business, in collaboration with Arizona State University">E.T. Yuchengco School of Business, in collaboration with Arizona State University</option>
+                    <option value="School of Health Sciences, in collaboration with Arizona State University">School of Health Sciences, in collaboration with Arizona State University</option>
+                    <option value="School of Nursing, in collaboration with Arizona State University">School of Nursing, in collaboration with Arizona State University</option>
+                  </optgroup>
+                </select>
               </div>
 
               <div className="flex flex-col gap-2 md:col-span-2">
